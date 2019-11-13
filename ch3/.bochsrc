@@ -10,10 +10,11 @@ romimage: file=../../bochs-2.6.9/bios/BIOS-bochs-latest
 vgaromimage: file=../../bochs-2.6.9/bios/VGABIOS-lgpl-latest
 
 # what disk images will be used
-floppya: 1_44=./a.img, status=inserted
+floppya: 1_44=./freedos.img, status=inserted
+floppyb: 1_44=./pm.img, status=inserted
 
 # choose the boot disk
-boot: floppy
+boot: a
 
 # where do we send log messages?
 log: bochsout.txt

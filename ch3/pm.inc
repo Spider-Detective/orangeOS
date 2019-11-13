@@ -1,9 +1,27 @@
-; type of descriptor
+; attributes of descriptor
 DA_32   EQU   4000h     ; 32-bit seg
 
-; store the type of seg descriptor
-DA_DRW  EQU     92h     ;
-DA_C    EQU     98h     ; 
+DA_DPL0 EQU     00h     ; DPL = 0
+DA_DPL1 EQU     20h     ; DPL = 1
+DA_DPL2 EQU     40h     ; DPL = 2
+DA_DPL3 EQU     60h     ; DPL = 3
+
+; code/data seg descriptor
+DA_DR      EQU     90h     ; 
+DA_DRW     EQU     92h     ;
+DA_DRWA    EQU     93h     ; 
+DA_C       EQU     98h     ;
+DA_CR      EQU     9Ah     ;
+DA_CCO     EQU     9Ch     ;
+DA_CCOR    EQU     9Eh     ;
+
+; system seg descriptor
+DA_LDT          EQU     82h      ;
+DA_TaskGate     EQU     85h      ;
+DA_386TSS       EQU     89h      ;
+DA_386CGate     EQU     8Ch      ;
+DA_386IGate     EQU     8Eh      ;
+DA_386TGate     EQU     8Fh      ;
 
 ; descriptor
 ; usage: Descriptor Base, Limit, Attr
