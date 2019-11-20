@@ -18,6 +18,7 @@ LABEL_DESC_CODE16: Descriptor       0,            0ffffh, DA_C         ;
 LABEL_DESC_DATA:   Descriptor       0,       DataLen - 1, DA_DRW       ;
 LABEL_DESC_STACK:  Descriptor       0,        TopOfStack, DA_DRWA + DA_32       ;
 LABEL_DESC_TEST:   Descriptor 0500000h,           0ffffh, DA_DRW       ;   large addres (5MB)
+LABEL_DESC_LDT:    Descriptor       0,        LDTLen - 1, DA_LDT       ; LDT
 LABEL_DESC_VIDEO:  Descriptor 0B8000h,            0ffffh, DA_DRW       ;
 ; GDT end
 
@@ -32,6 +33,7 @@ SelectorCode16		equ		LABEL_DESC_CODE16		- LABEL_GDT
 SelectorData		equ		LABEL_DESC_DATA	     	- LABEL_GDT
 SelectorStack		equ		LABEL_DESC_STACK		- LABEL_GDT
 SelectorTest		equ		LABEL_DESC_TEST  		- LABEL_GDT
+SelectorLDT         equ     LABEL_DESC_LDT          - LABEL_GDT
 SelectorVideo		equ		LABEL_DESC_VIDEO		- LABEL_GDT
 ; END of [SECTION .gdt]
 
@@ -70,7 +72,7 @@ LABEL_BEGIN:
 		mov		ss, ax
 		mov		sp, 0100h
 
-		mov     [LABEL_GO_BACK_TO_REAL+3], ax
+		mov     [LABEL_GO_BACK_TO_REAL+3], ax  ; save the cs value into LABEL_GO_BACK_TO_REAL's segment position
 		mov     [SPValueInRealMode], sp
 
 		; initialize 16-bit code sqgment descriptor
@@ -113,13 +115,33 @@ LABEL_BEGIN:
 		mov		byte [LABEL_DESC_STACK + 4], al
 		mov		byte [LABEL_DESC_STACK + 7], ah
 
+		; initialize LDT descriptor
+		xor		eax, eax
+		mov		ax, ds
+		shl		eax, 4
+		add		eax, LABEL_LDT
+		mov		word [LABEL_DESC_LDT + 2], ax  ; need to update the base, since it is 0 when initialized
+		shr		eax, 16
+		mov		byte [LABEL_DESC_LDT + 4], al
+		mov		byte [LABEL_DESC_LDT + 7], ah
+
+		; initialize LDT_CODEA descriptor
+		xor		eax, eax
+		mov		ax, ds
+		shl		eax, 4
+		add		eax, LABEL_CODE_A
+		mov		word [LABEL_LDT_DESC_CODEA + 2], ax  ; need to update the base, since it is 0 when initialized
+		shr		eax, 16
+		mov		byte [LABEL_LDT_DESC_CODEA + 4], al
+		mov		byte [LABEL_LDT_DESC_CODEA + 7], ah
+
 		; prepare for loading GDTR
 		xor 	eax, eax
 		mov		ax, ds
 		shl		eax, 4
 		add		eax, LABEL_GDT		     ; eax <- gdt base
 		mov		dword [GdtPtr + 2], eax  ; [GdtPtr + 2] <- gdt base
-		
+
 		; load GDTR
 	    lgdt	[GdtPtr]
 
@@ -174,7 +196,7 @@ LABEL_SEG_CODE32:
 		mov		ax, SelectorStack
 		mov		ss, ax
 
-		mov		esp, TopOfStack
+		mov		esp, TopOfStack     ; changed the ss and esp to make the change in this seg always inside the stack segmentse
 
 		; mov		edi, (80 * 11 + 79) * 2     ; line 11, col 79 on screen
 		mov		ah, 0Ch						; 0000: black back, 1100: red char
@@ -194,11 +216,18 @@ LABEL_SEG_CODE32:
 .2:		; finished display
 		call	DispReturn
 
-		call	TestRead
-		call	TestWrite
-		call	TestRead
+		; call	TestRead
+		; call	TestWrite
+		; call	TestRead
 
-		jmp		SelectorCode16:0
+		; jmp		SelectorCode16:0      ; first step of jumping to 16-bit mode
+		
+		
+		; load LDT
+		mov     ax, SelectorLDT
+		lldt    ax
+
+		jmp     SelectorLDTCodeA:0    ; jump into local task
 
 ; -------------------------------
 TestRead:
@@ -295,7 +324,7 @@ ALIGN    32
 [BITS    16]
 LABEL_SEG_CODE16:
         ; jump back to real-mode
-		mov     ax, SelectorNormal
+		mov     ax, SelectorNormal   ; only able to return to real-mode from 16-bit seg, so need to first go to a 16-bit seg (SelectorNormal)
 		mov     ds, ax
 		mov     es, ax
 		mov     fs, ax
@@ -307,8 +336,38 @@ LABEL_SEG_CODE16:
 		mov     cr0, eax
 
 LABEL_GO_BACK_TO_REAL:
-        jmp     0:LABEL_REAL_ENTRY
+; this will jump to the section of LABEL_BEGIN and LABEL_REAL_ENTRY, with the cs set in LABEL_BEGIN (real-mode cs)
+        jmp     0:LABEL_REAL_ENTRY   ; the segment address (currently 0) is set in LABEL_BEGIN seg, at the beginning of the code
 
 Code16Len       equ      $ - LABEL_SEG_CODE16
 
 ; end of [SECTION .s16code]
+
+; LDT
+[SECTION .ldt]
+ALIGN     32
+LABEL_LDT:
+LABEL_LDT_DESC_CODEA: Descriptor 0, CodeALen - 1, DA_C + DA_32
+
+LDTLen      equ   $ - LABEL_LDT
+
+; LDT selector (use SA_TIL on)
+SelectorLDTCodeA       equ LABEL_LDT_DESC_CODEA - LABEL_LDT + SA_TIL
+; END of [SECTION .ldt]
+
+; CodeA (LDT, 32-bit seg)
+[SECTION .la]
+ALIGN     32
+[BITS     32]
+LABEL_CODE_A:
+    mov    ax, SelectorVideo
+	mov    gs, ax
+
+	mov    edi, (80 * 12 + 0) * 2
+	mov    ah, 0Ch
+	mov    al, 'L'
+	mov    [gs:edi], ax
+
+	jmp    SelectorCode16:0
+CodeALen    equ   $ - LABEL_CODE_A
+; END of [SECTION .la]

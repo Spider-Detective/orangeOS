@@ -23,7 +23,9 @@ DA_386CGate     EQU     8Ch      ;
 DA_386IGate     EQU     8Eh      ;
 DA_386TGate     EQU     8Fh      ;
 
-; descriptor
+SA_TIL     EQU     4     ; position of TI in a selector, on: LDT; off: GDT
+
+; descriptor struct
 ; usage: Descriptor Base, Limit, Attr
 ; Base: dd
 ; Limit: dd (low 20 bits available)
