@@ -23,6 +23,9 @@ DA_386CGate     EQU     8Ch      ;
 DA_386IGate     EQU     8Eh      ;
 DA_386TGate     EQU     8Fh      ;
 
+; SA: Selector Attribute
+SA_RPL3    EQU     3     ;
+
 SA_TIL     EQU     4     ; position of TI in a selector, on: LDT; off: GDT
 
 ; descriptor struct
@@ -38,3 +41,16 @@ SA_TIL     EQU     4     ; position of TI in a selector, on: LDT; off: GDT
         dw      ((%2 >> 8) & 0F00h) | (%3 & 0F0FFh) ; attr 1 + limit 2 + attr 2
         db      (%1 >> 24) & 0FFh  ; base 3
 %endmacro ; 8 bytes
+
+; gate struct
+; Gate Selector, Offset, DCount, Attr
+;    Selector: dw
+;    Offset:   dd
+;    DCount:   db
+;    Attr:     db
+%macro Gate 4
+        dw      (%2 & 0FFFFh)                       ; offset 1
+        dw      %1                                  ; selector
+        dw      (%3 & 1Fh) | ((%4 << 8) & 0FF00h)   ; attr
+        dw      ((%2 >> 16) & 0FFFFh)               ; offset 2
+%endmacro   ; 8 bytes
