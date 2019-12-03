@@ -10,20 +10,23 @@ org	0100h
 
 [SECTION .gdt]
 ; GDT
-;								base		limit			attr
-LABEL_GDT:	       Descriptor	    0,		           0, 0	           ; empty descriptor, base of GDT
-LABEL_DESC_NORMAL: Descriptor       0,            0ffffh, DA_DRW       ;
-LABEL_DESC_CODE32: Descriptor	    0,  SegCode32Len - 1, DA_C + DA_32 ;
-LABEL_DESC_CODE16: Descriptor       0,            0ffffh, DA_C         ;
-LABEL_DESC_CODE_DEST: Descriptor    0,SegCodeDestLen - 1, DA_C + DA_32
-LABEL_DESC_DATA:   Descriptor       0,       DataLen - 1, DA_DRW       ;
-LABEL_DESC_STACK:  Descriptor       0,        TopOfStack, DA_DRWA + DA_32       ;
-LABEL_DESC_TEST:   Descriptor 0500000h,           0ffffh, DA_DRW       ;   large addres (5MB)
-LABEL_DESC_LDT:    Descriptor       0,        LDTLen - 1, DA_LDT       ; LDT
-LABEL_DESC_VIDEO:  Descriptor 0B8000h,            0ffffh, DA_DRW       ;
+;								    base		limit		    	attr
+LABEL_GDT:	           Descriptor	     0,		            0, 0	           ; empty descriptor, base of GDT
+LABEL_DESC_NORMAL:     Descriptor        0,            0ffffh, DA_DRW       ;
+LABEL_DESC_CODE32:     Descriptor	     0,  SegCode32Len - 1, DA_C + DA_32 ;
+LABEL_DESC_CODE16:     Descriptor        0,            0ffffh, DA_C         ;
+LABEL_DESC_CODE_DEST:  Descriptor        0,SegCodeDestLen - 1, DA_C + DA_32 ;
+LABEL_DESC_CODE_RING3: Descriptor        0, SegCodeRing3Len-1, DA_C + DA_32 + DA_DPL3
+LABEL_DESC_DATA:       Descriptor        0,       DataLen - 1, DA_DRW       ;
+LABEL_DESC_STACK:      Descriptor        0,        TopOfStack, DA_DRWA + DA_32       ;
+LABEL_DESC_STACK3:     Descriptor        0,       TopOfStack3, DA_DRWA + DA_32 + DA_DPL3
+LABEL_DESC_TEST:       Descriptor 0500000h,            0ffffh, DA_DRW       ;   large addres (5MB)
+LABEL_DESC_LDT:        Descriptor        0,        LDTLen - 1, DA_LDT       ; LDT
+LABEL_DESC_TSS:        Descriptor        0,        TSSLen - 1, DA_386TSS
+LABEL_DESC_VIDEO:      Descriptor  0B8000h,            0ffffh, DA_DRW + DA_DPL3    ; set the privilege to 3 instead of 0
 
 ; gates
-LABEL_CALL_GATE_TEST: Gate SelectorCodeDest,    0,    0, DA_386CGate + DA_DPL0
+LABEL_CALL_GATE_TEST: Gate SelectorCodeDest,    0,    0, DA_386CGate + DA_DPL3
 ; GDT end
 
 GdtLen		equ		$ - LABEL_GDT	; length of GDT
@@ -35,13 +38,16 @@ SelectorNormal		equ		LABEL_DESC_NORMAL		- LABEL_GDT
 SelectorCode32		equ		LABEL_DESC_CODE32		- LABEL_GDT
 SelectorCode16		equ		LABEL_DESC_CODE16		- LABEL_GDT
 SelectorCodeDest    equ     LABEL_DESC_CODE_DEST    - LABEL_GDT
+SelectorCodeRing3   equ     LABEL_DESC_CODE_RING3   - LABEL_GDT + SA_RPL3
 SelectorData		equ		LABEL_DESC_DATA	     	- LABEL_GDT
 SelectorStack		equ		LABEL_DESC_STACK		- LABEL_GDT
+SelectorStack3      equ     LABEL_DESC_STACK3       - LABEL_GDT + SA_RPL3
 SelectorTest		equ		LABEL_DESC_TEST  		- LABEL_GDT
 SelectorLDT         equ     LABEL_DESC_LDT          - LABEL_GDT
+SelectorTSS         equ     LABEL_DESC_TSS          - LABEL_GDT
 SelectorVideo		equ		LABEL_DESC_VIDEO		- LABEL_GDT
 
-SelectorCallGateTest    equ     LABEL_CALL_GATE_TEST       - LABEL_GDT
+SelectorCallGateTest    equ     LABEL_CALL_GATE_TEST       - LABEL_GDT + SA_RPL3
 ; END of [SECTION .gdt]
 
 [SECTION .data1]  ; data seg
@@ -69,6 +75,52 @@ TopOfStack			equ		$ - LABEL_STACK - 1
 
 ; END of [SECTION .gs]
 
+; stack seg ring3
+[SECTION .s3]
+ALIGN   32
+[BITS   32]
+LABEL_STACK3:
+	    times 512 db 0
+TopOfStack3    equ     $ - LABEL_STACK3 - 1
+; END of [SECTION .s3]
+
+; TSS
+[SECTION .tss]
+ALIGN   32
+[BITS   32]
+LABEL_TSS:  ; see Figure 3.20, write from byte 0 to 100
+; DD: write double word (32 bits), DW: 16bits
+		      DD     0                       ; Back
+			  DD     TopOfStack              ; stack for ring0
+			  DD     SelectorStack           ; 
+			  DD     0                       ; stack for ring 1
+			  DD     0                       ; 
+			  DD     0                       ; stack for ring 2
+			  DD     0                       ; 
+			  DD     0                       ; GR3
+			  DD     0                       ; EIP
+			  DD     0                       ; EFLAGS
+			  DD     0                       ; EAX
+			  DD     0                       ; ECX
+			  DD     0                       ; EDX
+			  DD     0                       ; EBX
+			  DD     0                       ; ESP
+			  DD     0                       ; EBP
+			  DD     0                       ; ESI
+			  DD     0                       ; EDI
+			  DD     0                       ; ES
+			  DD     0                       ; CS
+			  DD     0                       ; SS
+			  DD     0                       ; DS
+			  DD     0                       ; FS
+			  DD     0                       ; GS
+			  DD     0                       ; LDT
+			  DW     0                       ; trap
+			  DW     $ - LABEL_TSS + 2       ; Base addr of I/O bitmap
+			  DB     0ffh                    ; Ending sign of I/O bitmap
+
+TSSLen        equ    $ - LABEL_TSS
+; END of [SECTION .tss]
 
 [SECTION .s16]
 [BITS 	16]
@@ -132,6 +184,16 @@ LABEL_BEGIN:
 		mov		byte [LABEL_DESC_STACK + 4], al
 		mov		byte [LABEL_DESC_STACK + 7], ah
 
+		; initialize stack code segment descriptor for privilege 3
+		xor		eax, eax
+		mov		ax, ds
+		shl		eax, 4
+		add		eax, LABEL_STACK3
+		mov		word [LABEL_DESC_STACK3 + 2], ax  ; need to update the base, since it is 0 when initialized
+		shr		eax, 16
+		mov		byte [LABEL_DESC_STACK3 + 4], al
+		mov		byte [LABEL_DESC_STACK3 + 7], ah
+
 		; initialize LDT descriptor
 		xor		eax, eax
 		mov		ax, ds
@@ -151,6 +213,26 @@ LABEL_BEGIN:
 		shr		eax, 16
 		mov		byte [LABEL_LDT_DESC_CODEA + 4], al
 		mov		byte [LABEL_LDT_DESC_CODEA + 7], ah
+
+		; initialize Ring3 descriptor
+		xor		eax, eax
+		mov		ax, ds
+		shl		eax, 4
+		add		eax, LABEL_CODE_RING3
+		mov		word [LABEL_DESC_CODE_RING3 + 2], ax  ; need to update the base, since it is 0 when initialized
+		shr		eax, 16
+		mov		byte [LABEL_DESC_CODE_RING3 + 4], al
+		mov		byte [LABEL_DESC_CODE_RING3 + 7], ah
+
+		; initialize TSS descriptor
+		xor		eax, eax
+		mov		ax, ds
+		shl		eax, 4
+		add		eax, LABEL_TSS
+		mov		word [LABEL_DESC_TSS + 2], ax  ; need to update the base, since it is 0 when initialized
+		shr		eax, 16
+		mov		byte [LABEL_DESC_TSS + 4], al
+		mov		byte [LABEL_DESC_TSS + 7], ah
 
 		; prepare for loading GDTR
 		xor 	eax, eax
@@ -231,6 +313,7 @@ LABEL_SEG_CODE32:
 		add		edi, 2
 		jmp 	.1
 .2:		; finished display
+
 		call	DispReturn
 
 		; call	TestRead
@@ -238,9 +321,22 @@ LABEL_SEG_CODE32:
 		; call	TestRead
 
 		; jmp		SelectorCode16:0      ; first step of jumping to 16-bit mode
-		
+
+		mov     ax, SelectorTSS
+		ltr     ax                  ; load TSS before changing privilege
+
+		; enter privilege 3 mode
+		push    SelectorStack3    ; push ss for privilege 3
+		push    TopOfStack3       ; push esp
+		push    SelectorCodeRing3 ; push cs
+		push    0                 ; push eip
+		retf      ; jump from privilege 0 to 3!
+ 		
+		ud2       ; bug test: should never arrive here
+
 		; test call gates by printing char 'C'
-		call    SelectorCallGateTest:0
+		call    SelectorCallGateTest:0    
+		;call    SelectorCodeDest:0   ; this also works, without using call gates, but can only be used with no privilege change
 		
 		; load LDT
 		mov     ax, SelectorLDT
@@ -350,7 +446,13 @@ LABEL_SEG_CODE_DEST:
 		mov     al, 'C'
 		mov     [gs:edi], ax
 
-		retf   ; the code will execute right after the call command
+		; load LDT here, instead of calling LDTCodeA in p.s32 as before
+		mov     ax, SelectorLDT
+		lldt    ax
+
+        jmp     SelectorLDTCodeA:0     ; jump into LDT, print 'L'
+
+		;retf   ; the code will execute right after the call command
 
 SegCodeDestLen  equ    $ - LABEL_SEG_CODE_DEST
 ; END of [SECTION .sdest]
@@ -408,3 +510,22 @@ LABEL_CODE_A:
 	jmp    SelectorCode16:0
 CodeALen    equ   $ - LABEL_CODE_A
 ; END of [SECTION .la]
+
+; CodeRing3, write a '3' into the screen
+[SECTION .ring3]
+ALIGN    32
+[BITS    32]
+LABEL_CODE_RING3:
+		mov		ax, SelectorVideo
+		mov     gs, ax
+
+		mov     edi, (80 * 14 + 0) * 2
+		mov     ah, 0Ch
+		mov     al, '3'
+		mov     [gs:edi], ax
+
+        call    SelectorCallGateTest:0  ; jump from privilege 3 to 0! by using call gates
+
+		jmp     $  ; stay here for now
+SegCodeRing3Len  equ      $ - LABEL_CODE_RING3
+; END of [SECTION .ring3]
