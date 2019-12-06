@@ -1,5 +1,6 @@
 ; attributes of descriptor
-DA_32   EQU   4000h     ; 32-bit seg
+DA_32         EQU   4000h     ; 32-bit seg
+DA_LIMIT_4K   EQU   8000h     ; segment gradularity for 4K  
 
 DA_DPL0 EQU     00h     ; DPL = 0
 DA_DPL1 EQU     20h     ; DPL = 1
@@ -24,9 +25,20 @@ DA_386IGate     EQU     8Eh      ;
 DA_386TGate     EQU     8Fh      ;
 
 ; SA: Selector Attribute
+SA_RPL0    EQU     0
+SA_RPL1    EQU     1
+SA_RPL2    EQU     2
 SA_RPL3    EQU     3     ;
 
+SA_TIG     EQU     0
 SA_TIL     EQU     4     ; position of TI in a selector, on: LDT; off: GDT
+
+; Constants for paging mechanism
+PG_P       EQU     1     ; page existing property
+PG_RWR     EQU     0     ; R/W attr, read/exec
+PG_RWW     EQU     2     ; R/W attr, read/write/exec
+PG_USS     EQU     0     ; U/S attr, system level
+PG_USU     EQU     4     ; U/S attr, user level
 
 ; descriptor struct
 ; usage: Descriptor Base, Limit, Attr
