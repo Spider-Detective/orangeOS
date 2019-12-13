@@ -13,16 +13,16 @@ org	0100h
 
 [SECTION .gdt]
 ; GDT
-;								    base		limit		    	attr
-LABEL_GDT:	           Descriptor	     0,		            0, 0	           ; empty descriptor, base of GDT
-LABEL_DESC_NORMAL:     Descriptor        0,            0ffffh, DA_DRW       ;
-LABEL_DESC_PAGE_DIR:   Descriptor  PageDirBase,          4095, DA_DRW        ; Page Directory
-LABEL_DESC_PAGE_TBL:   Descriptor   PageTblBase,         1023, DA_DRW|DA_LIMIT_4K;    Page Tables 
-LABEL_DESC_CODE32:     Descriptor	     0,  SegCode32Len - 1, DA_C + DA_32 ;
-LABEL_DESC_CODE16:     Descriptor        0,            0ffffh, DA_C         ;
-LABEL_DESC_DATA:       Descriptor        0,       DataLen - 1, DA_DRW       ;
-LABEL_DESC_STACK:      Descriptor        0,        TopOfStack, DA_DRWA + DA_32       ;
-LABEL_DESC_VIDEO:      Descriptor  0B8000h,            0ffffh, DA_DRW    ; set the privilege to 3 instead of 0
+;								       base		         limit		    	attr
+LABEL_GDT:	           Descriptor	          0,		         0, 0	           ; empty descriptor, base of GDT
+LABEL_DESC_NORMAL:     Descriptor             0,            0ffffh, DA_DRW       ;
+LABEL_DESC_PAGE_DIR:   Descriptor   PageDirBase,              4095, DA_DRW        ; Page Directory
+LABEL_DESC_PAGE_TBL:   Descriptor   PageTblBase,              1023, DA_DRW|DA_LIMIT_4K;    Page Tables 
+LABEL_DESC_CODE32:     Descriptor	          0,  SegCode32Len - 1, DA_C + DA_32 ;
+LABEL_DESC_CODE16:     Descriptor             0,            0ffffh, DA_C         ;
+LABEL_DESC_DATA:       Descriptor             0,       DataLen - 1, DA_DRW       ;
+LABEL_DESC_STACK:      Descriptor             0,        TopOfStack, DA_DRWA + DA_32       ;
+LABEL_DESC_VIDEO:      Descriptor       0B8000h,            0ffffh, DA_DRW    ; set the privilege to 3 instead of 0
 
 GdtLen		equ		$ - LABEL_GDT	; length of GDT
 GdtPtr		dw		GdtLen - 1		; limit of GDT
@@ -208,7 +208,7 @@ SetupPaging:
 		mov     eax, PageTblBase | PG_P | PG_USU | PG_RWW
 
 .1:
-		stosd
+		stosd                      ; move edi by 4 each time
 		add		eax, 4096          ; for simplicity, all page tables are continuous in memory
 		loop    .1
 
@@ -224,11 +224,12 @@ SetupPaging:
 		add     eax, 4096       ; each page points to 4K space
 		loop    .2
 
+		; start paging mechanism
 		mov     eax, PageDirBase
 		mov     cr3, eax
 		mov     eax, cr0
 		or      eax, 80000000h
-		mov     cr0, eax
+		mov     cr0, eax        ; set bit PG for cr0
 		jmp     short .3
 .3:
 		nop
