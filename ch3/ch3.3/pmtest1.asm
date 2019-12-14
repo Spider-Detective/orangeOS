@@ -17,7 +17,7 @@ org	0100h
 LABEL_GDT:	           Descriptor	          0,		         0, 0	           ; empty descriptor, base of GDT
 LABEL_DESC_NORMAL:     Descriptor             0,            0ffffh, DA_DRW       ;
 LABEL_DESC_PAGE_DIR:   Descriptor   PageDirBase,              4095, DA_DRW        ; Page Directory
-LABEL_DESC_PAGE_TBL:   Descriptor   PageTblBase,              1023, DA_DRW|DA_LIMIT_4K;    Page Tables 
+LABEL_DESC_PAGE_TBL:   Descriptor   PageTblBase,      4096 * 8 - 1, DA_DRW       ;    Page Tables 
 LABEL_DESC_CODE32:     Descriptor	          0,  SegCode32Len - 1, DA_C + DA_32 ;
 LABEL_DESC_CODE16:     Descriptor             0,            0ffffh, DA_C         ;
 LABEL_DESC_DATA:       Descriptor             0,       DataLen - 1, DA_DRW       ;
@@ -43,11 +43,44 @@ SelectorVideo		equ		LABEL_DESC_VIDEO		- LABEL_GDT
 ALIGN	32
 [BITS	32]
 LABEL_DATA:
-SPValueInRealMode	dw		0
+; used in real mode:
 ; strings
-PMMessage:			db		"In Protect Mode now.", 0   ; shown in protected mode
-OffsetPMMessage		equ		PMMessage - $$
-DataLen				equ		$ - LABEL_DATA
+_szPMMessage:			        db		"In Protect Mode now.^-^", 0Ah, 0Ah, 0   ; shown in protected mode
+_szMemChkTitle:                 db      "BaseAddrL BaseAddrH LengthLow LengthHigh   Type", 0Ah, 0  
+_szRAMSize                      db      "RAM size:", 0
+_szReturn                       db      0Ah, 0
+
+; variables
+_wSPValueInRealMode	            dw	   	  0
+_dwMCRNumber:                   dd        0         ; number of memory check results
+_dwDispPos:                     dd        (80 * 14 + 0) * 2      ; display position
+_dwMemSize:                     dd        0
+_ARDStruct:              ; Address Range Descriptor Structure
+		_dwBaseAddrLow:         dd        0
+		_dwBaseAddrHigh:        dd        0
+		_dwLengthLow:           dd        0
+		_dwLengthHigh:          dd        0
+		_dwType:                dd        0
+
+_MemChkBuf:    times   256      db        0
+
+; used in protect mode (need to offset from seg base addr):
+szPMMessage		         equ     _szPMMessage      - $$
+szMemChkTitle            equ     _szMemChkTitle    - $$
+szRAMSize                equ     _szRAMSize        - $$
+szReturn                 equ     _szReturn         - $$
+dwDispPos                equ     _dwDispPos        - $$
+dwMemSize                equ     _dwMemSize        - $$
+dwMCRNumer               equ     _dwMCRNumber      - $$
+ARDStruct                equ     _ARDStruct        - $$
+		dwBaseAddrLow    equ     _dwBaseAddrLow    - $$
+		dwBaseAddrHigh   equ     _dwBaseAddrHigh   - $$
+		dwLengthLow      equ     _dwLengthLow      - $$
+		dwLengthHigh     equ     _dwLengthHigh     - $$
+		dwType           equ     _dwType           - $$
+MemChkBuf                equ     _MemChkBuf        - $$
+
+DataLen				     equ	 $ - LABEL_DATA
 ; END of [SECTION .data	1]
 
 
@@ -72,8 +105,26 @@ LABEL_BEGIN:
 		mov		sp, 0100h
 
 		mov     [LABEL_GO_BACK_TO_REAL+3], ax  ; save the cs value into LABEL_GO_BACK_TO_REAL's segment position
-		mov     [SPValueInRealMode], sp
+		mov     [_wSPValueInRealMode], sp
 
+		; get the memory size
+		mov     ebx, 0
+		mov     di, _MemChkBuf
+.loop:
+        mov     eax, 0E820h
+		mov     ecx, 20
+		mov     edx, 0534D4150h
+		int     15h                   ; prepare regs and do interrupt
+		jc      LABEL_MEM_CHK_FAIL    ; error if CF bit is set to 1
+		add     di, 20                ; size of each ARDS is 20, saved into _MemChkBuf
+		inc     dword [_dwMCRNumber]
+		cmp     ebx, 0                ; end loop if ebx is 0
+		jne     .loop
+		jmp     LABEL_MEM_CHK_OK
+LABEL_MEM_CHK_FAIL:
+		mov     dword [_dwMCRNumber], 0
+
+LABEL_MEM_CHK_OK:
 		; initialize 16-bit code sqgment descriptor
 		mov		ax, cs
 		movzx   eax, ax
@@ -147,7 +198,7 @@ LABEL_REAL_ENTRY:         ; back to here after jump from protected-mode to real-
 		mov     es, ax
 		mov     ss, ax
 
-		mov     sp, [SPValueInRealMode]
+		mov     sp, [_wSPValueInRealMode]
 
 		; close address line A20
 		in      al, 92h     
@@ -164,10 +215,10 @@ LABEL_REAL_ENTRY:         ; back to here after jump from protected-mode to real-
 [BITS 	32]
 
 LABEL_SEG_CODE32:
-		call    SetupPaging
-
 		mov		ax, SelectorData
 		mov 	ds, ax
+		mov		ax, SelectorData
+		mov 	es, ax
 		mov		ax, SelectorVideo
 		mov		gs, ax						; store video seg selector into gs
 											; gs's selector points to the index of DESC_VIDEO descriptor in GDT
@@ -177,32 +228,47 @@ LABEL_SEG_CODE32:
 
 		mov		esp, TopOfStack     ; changed the ss and esp to make the change in this seg always inside the stack segmentse
 
-		; mov		edi, (80 * 11 + 79) * 2     ; line 11, col 79 on screen
-		mov		ah, 0Ch						; 0000: black back, 1100: red char
-		xor		esi, esi
-		xor 	edi, edi
-		mov		esi, OffsetPMMessage
-		mov		edi, (80 * 10 + 0) * 2
-		cld
-.1:
-		lodsb
-		test 	al, al
-		jz		.2
-		mov		[gs:edi], ax				; write ax (pixel) into gs (DESC_VIDEO) with offset edi (pixel pos)
-		add		edi, 2
-		jmp 	.1
-.2:		; finished display
+		; show a string
+		push    szPMMessage
+		call    DispStr
+		add     esp, 4
+
+		push    szMemChkTitle
+		call    DispStr
+		add     esp, 4
+
+		call    DispMemSize   ; show memory info
+
+		call    SetupPaging
 
 		jmp		SelectorCode16:0      ; first step of jumping to 16-bit mode
 
 ; start paging mechanism -----------------------------------------
+; page: continuous chunk of memory, size 4KB
+; page table: 1024 * 4 bytes (fit into 1 page)
+; page table entry: 1024 entries in each page table, each entry points to a physical page
+; page directory: 1024 * 4 bytes (fit into 1 page)
+; page directory entry: 1024 entries in each page directory, each entry points to a page table
 SetupPaging:
+
+		; calculate how many PDE (or page table) is required according to memory size
+		xor     edx, edx
+		mov     eax, [dwMemSize]
+		mov     ebx, 400000h        ; 400000h = 4M = 1024 (page table entry) * 4096 (size of a physical page), memory size of a page table
+		div     ebx
+		mov     ecx, eax            ; ecx is the number of page table, or PDE
+		test    edx, edx
+		jz      .no_remainder
+		inc     ecx                 ; add one page table if there is remainder
+.no_remainder:
+		push    ecx
+
 		; to simplify, all linear address equals to its physical address
 
 		; initiate page directory
 		mov     ax, SelectorPageDir        ; front address is PageDirBase 
 		mov     es, ax
-		mov     ecx, 1024                   ; 1K table entries in total
+		mov     ecx, 1024                   ; 1K page directory entries in total
 		xor     edi, edi
 		xor     eax, eax
 		mov     eax, PageTblBase | PG_P | PG_USU | PG_RWW
@@ -212,10 +278,13 @@ SetupPaging:
 		add		eax, 4096          ; for simplicity, all page tables are continuous in memory
 		loop    .1
 
-		; re-initiate all page tables (1Kpage table entries, 4M memory)
+		; initiate all page tables (1Kpage table entries, 4M memory)
 		mov     ax, SelectorPageTbl     ; base address PageTblBase
 		mov     es, ax
-		mov     ecx, 1024 * 1024      ; 1M page table entries
+		pop     eax
+		mov     ebx, 1024           ; 1024 page table entries for each page table
+		mul     ebx
+		mov     ecx, eax            ; PTE No. = Page table No. * 1024
 		xor     edi, edi
 		xor     eax, eax
 		mov     eax, PG_P | PG_USU | PG_RWW
@@ -236,6 +305,53 @@ SetupPaging:
 
 		ret	
 ; finished starting paging mechanism --------------------------------------
+
+
+DispMemSize:
+		push    esi
+		push    edi
+		push    ecx
+
+		mov     esi, MemChkBuf
+		mov     ecx, [dwMCRNumer]   ; for (int i = 0; i < [MCRNumber]; i++) // get ARDS each time
+.loop:                              ; {
+		mov     edx, 5              ;    for (int j = 0; j < 5; j++)  // get a member in ARDS, 5 in total
+		mov     edi, ARDStruct      ;    {      // show up the five members
+.1: 
+        push    dword [esi]
+		call    DispInt             ;        DispInt(MemCheckBuf[j * 4]);  // show up the member
+		pop     eax      
+		stosd                       ;        ARDStruct[j * 4] = MemChkBuf[j * 4];
+		add     esi, 4
+		dec     edx
+		cmp     edx, 0
+		jnz     .1                  ;    }
+		call    DispReturn          ;    printf("\n");
+		cmp     dword [dwType], 1   ;    if (Type == AddressRangeMemory)
+		jne     .2                  ;    {
+		mov     eax, [dwBaseAddrLow];        // refer to the values defined in ARDStruct
+		add     eax, [dwLengthLow]  ;    
+		cmp     eax, [dwMemSize]    ;        if (BaseAddrLow + LengthLow > MemSize)
+		jb      .2                  ;
+		mov     [dwMemSize], eax    ;            MemSize = BaseAddrLow + LengthLow;
+.2:                                 ;     }
+		loop    .loop               ; }
+    
+	    call    DispReturn          ; printf("\n");
+		push    szRAMSize           ;
+		call    DispStr             ; printf("RAM size:");
+		add     esp, 4 
+
+		push    dword [dwMemSize]
+		call    DispInt             ; DispInt(MemSize);
+		add     esp, 4
+
+		pop     ecx                 ; // print out all info for each ARDS,
+		pop     edi                 ; // and print out the max memory size needed
+		pop     esi
+		ret
+
+%include        "lib.inc"           ; lib functions
 
 SegCode32Len      equ         $ - LABEL_SEG_CODE32
 
