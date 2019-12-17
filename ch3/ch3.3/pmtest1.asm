@@ -256,32 +256,31 @@ SetupPaging:
 		mov     eax, [dwMemSize]
 		mov     ebx, 400000h        ; 400000h = 4M = 1024 (page table entry) * 4096 (size of a physical page), memory size of a page table
 		div     ebx
-		mov     ecx, eax            ; ecx is the number of page table, or PDE
+		mov     ecx, eax            ; ecx is the number of page tables, or PDE
 		test    edx, edx
 		jz      .no_remainder
 		inc     ecx                 ; add one page table if there is remainder
 .no_remainder:
-		push    ecx
+		push    ecx                 ; store the number of page tables
 
 		; to simplify, all linear address equals to its physical address
 
 		; initiate page directory
 		mov     ax, SelectorPageDir        ; front address is PageDirBase 
 		mov     es, ax
-		mov     ecx, 1024                   ; 1K page directory entries in total
 		xor     edi, edi
 		xor     eax, eax
 		mov     eax, PageTblBase | PG_P | PG_USU | PG_RWW
 
 .1:
-		stosd                      ; move edi by 4 each time
+		stosd                      ; move edi by 4 each time, initialize one PDE
 		add		eax, 4096          ; for simplicity, all page tables are continuous in memory
 		loop    .1
 
 		; initiate all page tables (1Kpage table entries, 4M memory)
 		mov     ax, SelectorPageTbl     ; base address PageTblBase
 		mov     es, ax
-		pop     eax
+		pop     eax                 ; get the number of page tables
 		mov     ebx, 1024           ; 1024 page table entries for each page table
 		mul     ebx
 		mov     ecx, eax            ; PTE No. = Page table No. * 1024
@@ -289,13 +288,13 @@ SetupPaging:
 		xor     eax, eax
 		mov     eax, PG_P | PG_USU | PG_RWW
 .2:
-		stosd
+		stosd                   ; initialize one PTE
 		add     eax, 4096       ; each page points to 4K space
 		loop    .2
 
 		; start paging mechanism
 		mov     eax, PageDirBase
-		mov     cr3, eax
+		mov     cr3, eax        ; give the PD base address to cr3
 		mov     eax, cr0
 		or      eax, 80000000h
 		mov     cr0, eax        ; set bit PG for cr0
