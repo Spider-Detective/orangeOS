@@ -5,8 +5,16 @@
 
 %include	"pm.inc"	; constants, macros
 
-PageDirBase			equ		200000h  ; starting address of page category: 2M
-PageTblBase         equ     201000h  ; starting address of page table: 2M+4K 
+; define two set of page directory
+PageDirBase0			equ		200000h  ; starting address of page directory: 2M
+PageTblBase0            equ     201000h  ; starting address of page table: 2M+4K 
+PageDirBase1	        equ     210000h  ; 2M + 64K
+PageTblBase1            equ     211000h  ; 2M + 64K + 4K
+
+LinearAddrDemo   equ     00401000h  ; PDE 1, PTE 1, offset 0 
+ProcFoo          equ     00401000h  ; first call from LinearAddrDemo, same addr as LinearAddrDemo
+ProcBar          equ     00501000h  ; second call, mapped address from LinearAddrDemo
+ProcPagingDemo   equ     00301000h
 
 org	0100h
 	jmp	LABEL_BEGIN
@@ -16,12 +24,12 @@ org	0100h
 ;								       base		         limit		    	attr
 LABEL_GDT:	           Descriptor	          0,		         0, 0	           ; empty descriptor, base of GDT
 LABEL_DESC_NORMAL:     Descriptor             0,            0ffffh, DA_DRW       ;
-LABEL_DESC_PAGE_DIR:   Descriptor   PageDirBase,              4095, DA_DRW        ; Page Directory
-LABEL_DESC_PAGE_TBL:   Descriptor   PageTblBase,      4096 * 8 - 1, DA_DRW       ;    Page Tables 
-LABEL_DESC_CODE32:     Descriptor	          0,  SegCode32Len - 1, DA_C + DA_32 ;
+LABEL_DESC_FLAT_C:     Descriptor             0,           0fffffh, DA_CR|DA_32|DA_LIMIT_4K ; 0~4G
+LABEL_DESC_FLAT_RW:    Descriptor             0,           0fffffh, DA_DRW|DA_LIMIT_4K   ; same as FLAT_C, only difference is attr
+LABEL_DESC_CODE32:     Descriptor	          0,  SegCode32Len - 1, DA_CR|DA_32 ;
 LABEL_DESC_CODE16:     Descriptor             0,            0ffffh, DA_C         ;
 LABEL_DESC_DATA:       Descriptor             0,       DataLen - 1, DA_DRW       ;
-LABEL_DESC_STACK:      Descriptor             0,        TopOfStack, DA_DRWA + DA_32       ;
+LABEL_DESC_STACK:      Descriptor             0,        TopOfStack, DA_DRWA|DA_32       ;
 LABEL_DESC_VIDEO:      Descriptor       0B8000h,            0ffffh, DA_DRW    ; set the privilege to 3 instead of 0
 
 GdtLen		equ		$ - LABEL_GDT	; length of GDT
@@ -30,8 +38,8 @@ GdtPtr		dw		GdtLen - 1		; limit of GDT
 
 ; GDT selector (basically the offset w.r.t to LABEL_GDT base address)
 SelectorNormal		equ		LABEL_DESC_NORMAL		- LABEL_GDT
-SelectorPageDir		equ		LABEL_DESC_PAGE_DIR		- LABEL_GDT
-SelectorPageTbl		equ		LABEL_DESC_PAGE_TBL   	- LABEL_GDT
+SelectorFlatC		equ		LABEL_DESC_FLAT_C		- LABEL_GDT
+SelectorFlatRW		equ		LABEL_DESC_FLAT_RW   	- LABEL_GDT
 SelectorCode32		equ		LABEL_DESC_CODE32		- LABEL_GDT
 SelectorCode16		equ		LABEL_DESC_CODE16		- LABEL_GDT
 SelectorData		equ		LABEL_DESC_DATA	     	- LABEL_GDT
@@ -53,7 +61,7 @@ _szReturn                       db      0Ah, 0
 ; variables
 _wSPValueInRealMode	            dw	   	  0
 _dwMCRNumber:                   dd        0         ; number of memory check results
-_dwDispPos:                     dd        (80 * 14 + 0) * 2      ; display position
+_dwDispPos:                     dd        (80 * 6 + 0) * 2      ; display position
 _dwMemSize:                     dd        0
 _ARDStruct:              ; Address Range Descriptor Structure
 		_dwBaseAddrLow:         dd        0
@@ -61,6 +69,7 @@ _ARDStruct:              ; Address Range Descriptor Structure
 		_dwLengthLow:           dd        0
 		_dwLengthHigh:          dd        0
 		_dwType:                dd        0
+_PageTableNumber                dd        0
 
 _MemChkBuf:    times   256      db        0
 
@@ -79,6 +88,7 @@ ARDStruct                equ     _ARDStruct        - $$
 		dwLengthHigh     equ     _dwLengthHigh     - $$
 		dwType           equ     _dwType           - $$
 MemChkBuf                equ     _MemChkBuf        - $$
+PageTableNumber          equ     _PageTableNumber  - $$
 
 DataLen				     equ	 $ - LABEL_DATA
 ; END of [SECTION .data	1]
@@ -216,14 +226,13 @@ LABEL_REAL_ENTRY:         ; back to here after jump from protected-mode to real-
 
 LABEL_SEG_CODE32:
 		mov		ax, SelectorData
-		mov 	ds, ax
-		mov		ax, SelectorData
+		mov 	ds, ax                      ; give the addr for data seg
 		mov 	es, ax
 		mov		ax, SelectorVideo
 		mov		gs, ax						; store video seg selector into gs
 											; gs's selector points to the index of DESC_VIDEO descriptor in GDT
 
-		mov		ax, SelectorStack
+		mov		ax, SelectorStack           ; give the addr for stack seg
 		mov		ss, ax
 
 		mov		esp, TopOfStack     ; changed the ss and esp to make the change in this seg always inside the stack segmentse
@@ -239,7 +248,7 @@ LABEL_SEG_CODE32:
 
 		call    DispMemSize   ; show memory info
 
-		call    SetupPaging
+		call    PagingDemo    ; entry point of the paging experiment code
 
 		jmp		SelectorCode16:0      ; first step of jumping to 16-bit mode
 
@@ -250,7 +259,6 @@ LABEL_SEG_CODE32:
 ; page directory: 1024 * 4 bytes (fit into 1 page)
 ; page directory entry: 1024 entries in each page directory, each entry points to a page table
 SetupPaging:
-
 		; calculate how many PDE (or page table) is required according to memory size
 		xor     edx, edx
 		mov     eax, [dwMemSize]
@@ -261,30 +269,28 @@ SetupPaging:
 		jz      .no_remainder
 		inc     ecx                 ; add one page table if there is remainder
 .no_remainder:
-		push    ecx                 ; store the number of page tables
+		mov     [PageTableNumber], ecx     ; store the number of page tables
 
 		; to simplify, all linear address equals to its physical address
 
 		; initiate page directory
-		mov     ax, SelectorPageDir        ; front address is PageDirBase 
+		mov     ax, SelectorFlatRW         
 		mov     es, ax
-		xor     edi, edi
+		mov     edi, PageDirBase0         ; base address is PageDirBase0
 		xor     eax, eax
-		mov     eax, PageTblBase | PG_P | PG_USU | PG_RWW
-
+		mov     eax, PageTblBase0 | PG_P | PG_USU | PG_RWW
 .1:
 		stosd                      ; move edi by 4 each time, initialize one PDE
 		add		eax, 4096          ; for simplicity, all page tables are continuous in memory
 		loop    .1
 
 		; initiate all page tables (1Kpage table entries, 4M memory)
-		mov     ax, SelectorPageTbl     ; base address PageTblBase
-		mov     es, ax
-		pop     eax                 ; get the number of page tables
+		; still use the same seg SelectorFlatRW for es
+		mov     eax, [PageTableNumber]     ; get the number of page tables
 		mov     ebx, 1024           ; 1024 page table entries for each page table
 		mul     ebx
 		mov     ecx, eax            ; PTE No. = Page table No. * 1024
-		xor     edi, edi
+		mov     edi, PageTblBase0   ; base address is PageTblBase0
 		xor     eax, eax
 		mov     eax, PG_P | PG_USU | PG_RWW
 .2:
@@ -293,7 +299,7 @@ SetupPaging:
 		loop    .2
 
 		; start paging mechanism
-		mov     eax, PageDirBase
+		mov     eax, PageDirBase0
 		mov     cr3, eax        ; give the PD base address to cr3
 		mov     eax, cr0
 		or      eax, 80000000h
@@ -305,6 +311,133 @@ SetupPaging:
 		ret	
 ; finished starting paging mechanism --------------------------------------
 
+; page mechanism experiment
+PagingDemo:
+		; prepare for MemCpy: dest seg: es or SelectorFlatRW, src seg: ds or cs
+		mov     ax, cs
+		mov     ds, ax
+		mov     ax, SelectorFlatRW
+		mov     es, ax
+
+		; copy the functions: PagingDemoProc, foo and bar into seg SelectorFlatRW
+		push    LenFoo
+		push    OffsetFoo
+		push    ProcFoo
+		call    MemCpy
+		add     esp, 12
+
+		push    LenBar
+		push    OffsetBar
+		push    ProcBar
+		call    MemCpy
+		add     esp, 12
+
+		push    LenPagingDemoAll
+		push    OffsetPagingDemoProc
+		push    ProcPagingDemo
+		call    MemCpy
+		add     esp, 12
+
+		mov     ax, SelectorData  ; recover es and ds
+		mov     ds, ax
+		mov     es, ax
+
+		call    SetupPaging       
+
+		call    SelectorFlatC:ProcPagingDemo  ; should call foo
+		call    PSwitch                       ; page switch to the second page dir
+		call    SelectorFlatC:ProcPagingDemo  ; should call bar
+
+		ret
+
+; function to switch paging directory
+; change from PageDirBase0 to PageDirBase1
+PSwitch:
+		; initiate page directory
+		mov     ax, SelectorFlatRW         
+		mov     es, ax
+		mov     edi, PageDirBase1         ; base address is PageDirBase1
+		xor     eax, eax
+		mov     eax, PageTblBase1 | PG_P | PG_USU | PG_RWW
+		mov     ecx, [PageTableNumber]
+.1:
+		stosd                      ; move edi by 4 each time, initialize one PDE
+		add		eax, 4096          ; for simplicity, all page tables are continuous in memory
+		loop    .1
+
+		; initiate all page tables (1Kpage table entries, 4M memory)
+		; still use the same seg SelectorFlatRW for es
+		mov     eax, [PageTableNumber]     ; get the number of page tables
+		mov     ebx, 1024           ; 1024 page table entries for each page table
+		mul     ebx
+		mov     ecx, eax            ; PTE No. = Page table No. * 1024
+		mov     edi, PageTblBase1   ; base address is PageTblBase1
+		xor     eax, eax
+		mov     eax, PG_P | PG_USU | PG_RWW
+.2:
+		stosd                   ; initialize one PTE
+		add     eax, 4096       ; each page points to 4K space
+		loop    .2
+
+		; map the LinearAddrDemo (called by PagingDemoProc below) to ProcBar
+		; LinearAddrDemo: linear address -> ProcBar: physical address
+		; see Figure 3.27
+		; the step is first convert the linear address to physical address, then assign the value to be the address of ProcBar
+		mov     eax, LinearAddrDemo
+		shr     eax, 22         ; get the highest 10 bits
+		mov     ebx, 4096
+		mul     ebx
+		mov     ecx, eax        ; ecx is the offset of PD
+		mov     eax, LinearAddrDemo
+		shr     eax, 12
+		and     eax, 03FFh      ; 10 bits, get the middle 10 bits
+		mov     ebx, 4
+		mul     ebx             ; eax is the offset of PT
+		add     eax, ecx    
+		add     eax, PageTblBase1
+		mov     dword [es:eax], ProcBar | PG_P | PG_USU | PG_RWW
+
+		; start paging mechanism
+		mov     eax, PageDirBase1
+		mov     cr3, eax        ; give the new PD base address to cr3
+		jmp     short .3
+.3:
+		nop
+
+		ret	
+; ---------------------------------------------------
+
+; test functions, will be put into the SelectorFlat seg
+PagingDemoProc:
+OffsetPagingDemoProc      equ      PagingDemoProc - $$
+		mov     eax, LinearAddrDemo
+		call    eax
+		retf
+LenPagingDemoAll          equ      $ - PagingDemoProc
+
+foo:
+OffsetFoo                 equ      foo - $$
+		mov     ah, 0Ch
+		mov     al, 'F'
+		mov     [gs:((80 * 17 + 0) * 2)], ax
+		mov     al, 'o'
+		mov     [gs:((80 * 17 + 1) * 2)], ax
+		mov     [gs:((80 * 17 + 2) * 2)], ax
+		ret
+LenFoo                    equ      $ - foo
+
+bar:
+OffsetBar                 equ      bar - $$
+		mov     ah, 0Ch
+		mov     al, 'B'
+		mov     [gs:((80 * 18 + 0) * 2)], ax
+		mov     al, 'a'
+		mov     [gs:((80 * 18 + 1) * 2)], ax
+		mov     al, 'r'
+		mov     [gs:((80 * 18 + 2) * 2)], ax
+		ret
+LenBar                    equ      $ - bar
+; ---------------------------
 
 DispMemSize:
 		push    esi
