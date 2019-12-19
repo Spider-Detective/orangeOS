@@ -24,7 +24,7 @@ org	0100h
 ;								       base		         limit		    	attr
 LABEL_GDT:	           Descriptor	          0,		         0, 0	           ; empty descriptor, base of GDT
 LABEL_DESC_NORMAL:     Descriptor             0,            0ffffh, DA_DRW       ;
-LABEL_DESC_FLAT_C:     Descriptor             0,           0fffffh, DA_CR|DA_32|DA_LIMIT_4K ; 0~4G
+LABEL_DESC_FLAT_C:     Descriptor             0,           0fffffh, DA_CR|DA_32|DA_LIMIT_4K ; 0~4G, notice DA_LIMIT_4K
 LABEL_DESC_FLAT_RW:    Descriptor             0,           0fffffh, DA_DRW|DA_LIMIT_4K   ; same as FLAT_C, only difference is attr
 LABEL_DESC_CODE32:     Descriptor	          0,  SegCode32Len - 1, DA_CR|DA_32 ;
 LABEL_DESC_CODE16:     Descriptor             0,            0ffffh, DA_C         ;
@@ -379,10 +379,12 @@ PSwitch:
 		add     eax, 4096       ; each page points to 4K space
 		loop    .2
 
-		; map the LinearAddrDemo (called by PagingDemoProc below) to ProcBar
+		; map the LinearAddrDemo (called by PagingDemoProc below) to ProcBar:
 		; LinearAddrDemo: linear address -> ProcBar: physical address
 		; see Figure 3.27
-		; the step is first convert the linear address to physical address, then assign the value to be the address of ProcBar
+		; first consider LinearAddrDemo as a linear address, and 
+		; get the corresponding PTE address from this linear address
+		; then assign the value to be the address of ProcBar, using es:eax, the logical address
 		mov     eax, LinearAddrDemo
 		shr     eax, 22         ; get the highest 10 bits
 		mov     ebx, 4096
@@ -392,10 +394,10 @@ PSwitch:
 		shr     eax, 12
 		and     eax, 03FFh      ; 10 bits, get the middle 10 bits
 		mov     ebx, 4
-		mul     ebx             ; eax is the offset of PT
+		mul     ebx             ; eax now is the offset of PT
 		add     eax, ecx    
 		add     eax, PageTblBase1
-		mov     dword [es:eax], ProcBar | PG_P | PG_USU | PG_RWW
+		mov     dword [es:eax], ProcBar | PG_P | PG_USU | PG_RWW ; assign to logical address
 
 		; start paging mechanism
 		mov     eax, PageDirBase1
@@ -410,8 +412,8 @@ PSwitch:
 ; test functions, will be put into the SelectorFlat seg
 PagingDemoProc:
 OffsetPagingDemoProc      equ      PagingDemoProc - $$
-		mov     eax, LinearAddrDemo
-		call    eax
+		mov     eax, LinearAddrDemo    ; call the linear address in SelectorFlat seg
+		call    eax                    ; short call
 		retf
 LenPagingDemoAll          equ      $ - PagingDemoProc
 
