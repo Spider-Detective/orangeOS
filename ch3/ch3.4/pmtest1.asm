@@ -70,7 +70,9 @@ _ARDStruct:              ; Address Range Descriptor Structure
 		_dwLengthHigh:          dd        0
 		_dwType:                dd        0
 _PageTableNumber                dd        0
-
+_SavedIDTR:                     dd        0      ; save IDTR
+								dd        0
+_SavedIMREG:                    db        0      ; save value of IMR
 _MemChkBuf:    times   256      db        0
 
 ; used in protect mode (need to offset from seg base addr):
@@ -88,6 +90,8 @@ ARDStruct                equ     _ARDStruct        - $$
 		dwLengthHigh     equ     _dwLengthHigh     - $$
 		dwType           equ     _dwType           - $$
 MemChkBuf                equ     _MemChkBuf        - $$
+SavedIDTR                equ     _SavedIDTR        - $$
+SavedIMREG               equ     _SavedIMREG       - $$
 PageTableNumber          equ     _PageTableNumber  - $$
 
 DataLen				     equ	 $ - LABEL_DATA
@@ -99,7 +103,11 @@ ALIGN    32
 [BITS    32]
 LABEL_IDT:
 ; gate                 target selector         offset    DCount   Attribute
-%rep 128   
+%rep 32   
+			Gate        SelectorCode32, SpuriousHandler,     0,  DA_386IGate
+%endrep
+.020h:	    Gate        SelectorCode32,    ClockHandler,     0,  DA_386IGate  ; for interrupt vec 020h
+%rep 95 
 			Gate        SelectorCode32, SpuriousHandler,     0,  DA_386IGate
 %endrep
 .080h:	    Gate        SelectorCode32,  UserIntHandler,     0,  DA_386IGate  ; for interrupt vec 080h 
@@ -204,6 +212,13 @@ LABEL_MEM_CHK_OK:
 		add     eax, LABEL_IDT
 		mov     dword [IdtPtr + 2], eax  ; give the idt base addr
 
+		; save IDTR
+		sidt    [_SavedIDTR]
+
+		; save IMR
+		in      al, 21h
+		mov     [_SavedIMREG], al
+
 		; load GDTR
 	    lgdt	[GdtPtr]
 
@@ -235,6 +250,10 @@ LABEL_REAL_ENTRY:         ; back to here after jump from protected-mode to real-
 
 		mov     sp, [_wSPValueInRealMode]
 
+		lidt    [_SavedIDTR]     ; recover IDT value
+		mov     al, [_SavedIMREG]   
+		out     21h, al          ; recover IMR
+
 		; close address line A20
 		in      al, 92h     
 		and     al, 11111101b
@@ -264,6 +283,8 @@ LABEL_SEG_CODE32:
 		; enable 8259 and try an interrupt
 		call    Init8259A
 		int     080h
+		sti                   ; set IF
+		jmp     $             ; enter infinite loop to wait for timer interrupt
 
 		; show a string
 		push    szPMMessage
@@ -277,6 +298,8 @@ LABEL_SEG_CODE32:
 		call    DispMemSize   ; show memory info
 
 		call    PagingDemo    ; entry point of the paging experiment code
+
+		call    SetRealmode8295A
 
 		jmp		SelectorCode16:0      ; first step of jumping to 16-bit mode
 
@@ -323,6 +346,28 @@ Init8259A:   ; see Figure 3.40
 
 		ret
 
+SetRealmode8295A:
+		mov     ax, SelectorData
+		mov     fs, ax
+
+		mov     al, 017h
+		out     020h, al       ; ICW1, master
+		call    io_delay
+
+		mov     al, 008h       ; IRQ0 -> 0x8
+		out     021h, al       ; ICW2, master
+		call    io_delay
+
+		mov     al, 001h       
+		out     021h, al       ; ICW4, master
+		call    io_delay
+
+		mov     al, [fs:SavedIMREG]
+		out     021h, al       ; recover IMR
+		call    io_delay
+
+		ret
+
 io_delay:
 		nop     ; do thing, just move to next instruction
 		nop
@@ -330,12 +375,11 @@ io_delay:
 		nop
 		ret
 
-_SpuriousHandler:   ; draw red ! on screen
-SpuriousHandler    equ         _SpuriousHandler - $$
-		mov     ah, 0Ch
-		mov     al, '!'
-		mov     [gs:((80 * 0 + 75) * 2)], ax    
-		jmp     $ 
+_ClockHandler: 
+ClockHandler       equ         _ClockHandler - $$
+		inc     byte [gs:((80 * 0 + 70) * 2)]  ; increment the char shown on screen
+		mov     al, 20h
+		out     20h, al        ; send EOI to 20h to continue to receive and handle interrupt    
 		iretd
 
 _UserIntHandler:
@@ -343,6 +387,14 @@ UserIntHandler     equ         _UserIntHandler - $$
 		mov     ah, 0Ch
 		mov     al, 'I'
 		mov     [gs:((80 * 0 + 70) * 2)], ax     
+		iretd
+
+_SpuriousHandler:   ; draw red ! on screen
+SpuriousHandler    equ         _SpuriousHandler - $$
+		mov     ah, 0Ch
+		mov     al, '!'
+		mov     [gs:((80 * 0 + 75) * 2)], ax    
+		jmp     $ 
 		iretd
 
 ; start paging mechanism -----------------------------------------
