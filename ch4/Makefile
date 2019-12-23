@@ -3,21 +3,30 @@
 # To check the space and tabs for the correctness of Makefile, use: cat -e -t -v Makefile
 # https://stackoverflow.com/questions/16931770/makefile4-missing-separator-stop
 
-ASM:=boot.asm
+BOOT:=boot.asm
+LDR:=loader.asm
 # no empty space among ".asm,.com,$(ASM)"
-BIN:=$(subst .asm,.bin,$(ASM)) # this is string sub function, or simply: pmtest1.com 
+BOOT_BIN:=$(subst .asm,.bin,$(BOOT)) # this is string sub function, or simply: pmtest1.com 
+LDR_BIN:=$(subst .asm,.bin,$(LDR))
 
 
 .PHONY : all  # always execute the commands using PHONY
 
-all : $(BIN)
-	dd if=$(BIN) of=a.img bs=512 count=1 conv=notrunc
-
-$(BIN) : $(ASM)
-    # $<: first prerequisite ($(ASM)), $@: target of the rule ($(COM))
-	nasm $< -o $@ 
+all : $(BOOT_BIN) $(LDR_BIN)
+	dd if=$(BOOT_BIN) of=a.img bs=512 count=1 conv=notrunc
+	sudo mount -o loop a.img /mnt/
+	sudo cp $(LDR_BIN) /mnt/ -v
+	sudo umount /mnt/
 
 .PHONY : clean
 
 clean : 
-	rm -f $(BIN)
+	sudo umount /mnt/
+	rm -f $(BOOT_BIN) $(LDR_BIN)
+
+$(BOOT_BIN) : $(BOOT)
+    # $<: first prerequisite ($(ASM)), $@: target of the rule ($(COM))
+	nasm $< -o $@ 
+
+$(LDR_BIN) : $(LDR)
+	nasm $< -o $@ 
