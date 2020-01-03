@@ -42,6 +42,16 @@ LABEL_START:
 		mov     ss, ax
 		mov     sp, BaseOfStack
 
+		; clear the screen
+		mov     ax, 0600h            ; AH = 6, AL = 0h
+		mov     bx, 0700h            ; black back, white char
+		mov     cx, 0                ; upper left corner (0, 0)
+		mov     dx, 0184fh           ; lower right corber (80, 50)
+		int     10h
+
+		mov     dh, 0                ; "Booting  "
+		call    DispStr
+
 		; reset floppy disk driver
 		xor     ah, ah
 		xor     dl, dl
@@ -219,8 +229,9 @@ ReadSector:
 ; So for FAT12, read from low addr, the first 3 bytes are unused, sector 2 is FFF, 3 is 008, etc
 ; When given a sector #, say 5, we need to time the size of one FAT entry (1.5 or * 3 / 2)
 ; Then we get the actual offset in FAT is 7
-; get the 2 bytes based on this offset, and if the sector # is odd, right shift 4 bits, 
-;                                                           is even, mask with 0x0FFF
+; get the 2 bytes based on this offset, e.g. offset 7 -> FF FF
+; and if the sector # is odd, right shift 4 bits, 
+;                     is even, mask with 0x0FFF
 ; NOTICE: when we want to get the 2 bytes from the offset, remember the FAT can take up more than 1 sector
 ; in the disk, so we need to divide BPB_BytsPerSec and get the actual sector # and offset
 GetFATEntry:
