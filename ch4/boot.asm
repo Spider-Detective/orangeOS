@@ -1,23 +1,14 @@
 
-;%define	_BOOT_DEBUG_	; 做 Boot Sector 时一定将此行注释掉!将此行打开后可用 nasm Boot.asm -o Boot.com 做成一个.COM文件易于调试
-
-%ifdef	_BOOT_DEBUG_
-	org  0100h			; 调试状态, 做成 .COM 文件, 可调试
-%else
-	org  07c00h			; Boot 状态, Bios 将把 Boot Sector 加载到 0:7C00 处并开始执行
-%endif
+org  07c00h			; Boot 状态, Bios 将把 Boot Sector 加载到 0:7C00 处并开始执行
 
 ; ----------------- constants definitions ------------------------
-%ifdef	_BOOT_DEBUG_
-BaseOfStack		equ	0100h	; 调试状态下堆栈基地址(栈底, 从这个位置向低地址生长)
-%else
-BaseOfStack		equ	07c00h	; 堆栈基地址(栈底, 从这个位置向低地址生长)
-%endif
-
+BaseOfStack		          equ 07c00h	    ; base addr of stack, grow from it
 BaseOfLoader              equ 09000h        ; loader.bin is loaded here, seg addr
 OffsetOfLoader            equ 0100h         ;                            offset addr
 RootDirSectors            equ 14            ; space taken by root dir
 SectorNoOfRootDirectory   equ 19            ; First sector # of root directory, see Figure 4.1
+SectorNoOfFAT1            equ 1             ; Starting sector # of FAT1, relates to BPB_RsvdSecCnt
+DeltaSectorNo             equ 17            ; = BPB_RsvdSecCnt + (BPB_NumFATs * BPB_FATSz16) - 2
 ; ---------------------------------------------------------------
 	
 	jmp short LABEL_START          ; start to boot
@@ -105,16 +96,50 @@ LABEL_NO_LOADERBIN:
 		mov     dh, 2                ; show the string of sequence #2
 		call    DispStr
 
-;		jmp     $
-%ifdef	_BOOT_DEBUG_
-	mov	ax, 4c00h		; `.
-	int	21h			; /  没有找到 LOADER.BIN, 回到 DOS
-%else
-	jmp	$			; 没有找到 LOADER.BIN, 死循环在这里
-%endif
+ 		jmp     $
 
 LABEL_FILENAME_FOUND:
-		jmp     $                    ; stop here for now
+		mov     ax, RootDirSectors
+		and     di, 0FFE0h           ; start of current dir entry
+		add     di, 01Ah             ; starting sector #, see Table 4.2
+		mov     cx, word [es:di]
+		push    cx                   ; save the # in FAT for current sector
+		add     cx, ax
+		add     cx, DeltaSectorNo
+		mov     ax, BaseOfLoader
+		mov     es, ax
+		mov     bx, OffsetOfLoader
+		mov     ax, cx
+LABEL_GOON_LOADING_FILE:
+		; add '.' each time reading a sector, Booting .....
+		push    ax
+		push    bx
+		mov     ah, 0Eh
+		mov     al, '.'
+		mov     bl, 0Fh
+		int     10h
+		pop     bx
+		pop     ax
+
+		mov     cl, 1
+		call    ReadSector
+		pop     ax
+		call    GetFATEntry
+		cmp     ax, 0FFFh      ; if it is the last one, stop; otherwise continue to read
+		jz      LABEL_FILE_LOADED
+		push    ax
+		mov     dx, RootDirSectors
+		add     ax, dx              ; convert the sector # read from FAT to actual # in disk:
+		add     ax, DeltaSectorNo   ; sector # + RootDirSecotrs (14) + (starting # of root dir (19) - 2) 
+		add     bx, [BPB_BytsPerSec]; increase 512 to move to the next sector
+		jmp     LABEL_GOON_LOADING_FILE
+LABEL_FILE_LOADED:
+		mov     dh, 1          ; print "Ready."
+		call    DispStr
+
+;---------- Jump to loader.bin and execute, handle the control to loader ---------------
+		jmp     BaseOfLoader:OffsetOfLoader
+;---------------------------------------------------------------------------------------
 
 ; --------------------------------------------------------
 wRootDirSizeForLoop      dw  RootDirSectors      ; sector # taken by root directory, will decrement to 0
@@ -181,6 +206,62 @@ ReadSector:
 		add     esp, 2
 		pop     bp
 
+		ret
+
+; find the FAT12 entry in sector numbered ax, and store the result in ax 
+; the sector of FAT is stored in es:bx, or actually BaseOfLoader:OffsetOfLoader
+;
+; NOTICE: FAT is stored in Little Endian, need to revert the byte to have a correct read
+; e.g. in the FAT example given in Page 107:
+;                     0000200: F0 FF FF FF 8F 00 FF FF FF FF FF FF 09 A0 00 FF
+; should be read as:           FF 00 A0 09 FF FF FF FF FF FF 00 8F FF FF FF F0
+;                             high                                          low
+; So for FAT12, read from low addr, the first 3 bytes are unused, sector 2 is FFF, 3 is 008, etc
+; When given a sector #, say 5, we need to time the size of one FAT entry (1.5 or * 3 / 2)
+; Then we get the actual offset in FAT is 7
+; get the 2 bytes based on this offset, and if the sector # is odd, right shift 4 bits, 
+;                                                           is even, mask with 0x0FFF
+; NOTICE: when we want to get the 2 bytes from the offset, remember the FAT can take up more than 1 sector
+; in the disk, so we need to divide BPB_BytsPerSec and get the actual sector # and offset
+GetFATEntry:
+		push    es
+		push    bx
+		push    ax
+		mov     ax, BaseOfLoader
+		sub     ax, 0100h          ; leave 4k space for FAT
+		mov     es, ax
+		pop     ax
+		mov     byte [bOdd], 0
+		; get the offset in FAT for the sector number, * 3 / 2
+		mov     bx, 3            
+		mul     bx                 ; dx:ax = ax * 3
+		mov     bx, 2
+		div     bx                 ; dx:ax / 2 => quotient in ax, remainder in dx
+		cmp     dx, 0              
+		jz      LABEL_EVEN
+		mov     byte [bOdd], 1
+LABEL_EVEN: 
+        ; now ax is the offset in FAT, continue to calculate the sector # in the disk based on this offset
+		xor     dx, dx
+		mov     bx, [BPB_BytsPerSec]
+		div     bx    ;   dx:ax / BPB_BytsPerSec
+		              ;   quotient in ax: sector # w.r.t FAT starting sector #; remainder in dx: offset in the sector
+		push    dx
+		mov     bx, 0
+		add     ax, SectorNoOfFAT1    ; now ax is the sector # in the disk
+		mov     cl, 2
+		call    ReadSector       ; read the sector contains FATEntry, each time read 2 since one entry can be crossing 2 sectors
+		pop     dx
+		add     bx, dx
+		mov     ax, [es:bx]
+		cmp     byte [bOdd], 1
+		jnz     LABEL_EVEN_2     
+		shr     ax, 4            ; if odd, right shift by 4
+LABEL_EVEN_2:
+		and     ax, 0FFFh        ; if even, mask with lower 12 bits
+LABEL_GET_FAT_ENTRY_OK:
+		pop     bx
+		pop     es
 		ret
 
 times	510-($-$$)	db	0
