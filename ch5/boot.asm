@@ -1,10 +1,8 @@
-
 org  07c00h			; Bios will load Boot Sector to 0:7C00 and start execute
 
 ; ----------------- constants definitions ------------------------
 BaseOfStack		          equ 07c00h	    ; base addr of stack, grow from it
-BaseOfLoader              equ 09000h        ; loader.bin is loaded here, seg addr
-OffsetOfLoader            equ 0100h         ;                            offset addr
+%include        "load.inc"
 ; ---------------------------------------------------------------
 	
 	jmp short LABEL_START          ; start to boot

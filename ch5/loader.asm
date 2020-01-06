@@ -2,16 +2,34 @@
 ; boot.asm will transfer the control to loader.asm, and loader.asm will continue to load the actual kernal into the memory
 
 org  0100h
-
-; ----------------- constants definitions ------------------------
-BaseOfStack		          equ 0100h	        ; base addr of stack, grow from it
-BaseOfKernelFile          equ 08000h        ; kernel.bin is loaded here, seg addr
-OffsetOfKernelFile        equ     0h        ;                            offset addr
-; ---------------------------------------------------------------
 	
 	jmp LABEL_START          
 
 %include        "fat12hdr.inc"
+%include        "load.inc"
+%include        "pm.inc"
+
+; GDT
+;								       base		         limit		    	attr
+LABEL_GDT:	           Descriptor	          0,		         0, 0	           ; empty descriptor, base of GDT
+LABEL_DESC_FLAT_C:     Descriptor             0,           0fffffh, DA_CR|DA_32|DA_LIMIT_4K ; 0~4G, notice DA_LIMIT_4K
+LABEL_DESC_FLAT_RW:    Descriptor             0,           0fffffh, DA_DRW|DA_32|DA_LIMIT_4K   ; same as FLAT_C, only difference is attr
+LABEL_DESC_VIDEO:      Descriptor       0B8000h,            0ffffh, DA_DRW|DA_DPL3    ; set the privilege to 3 instead of 0        
+
+GdtLen          equ     $ - LABEL_GDT
+GdtPtr          dw      GdtLen - 1
+                dd      BaseOfLoaderPhyAddr + LABEL_GDT
+
+; selectors
+SelectorFlatC             equ LABEL_DESC_FLAT_C      - LABEL_GDT
+SelectorFlatRW            equ LABEL_DESC_FLAT_RW     - LABEL_GDT
+SelectorVideo             equ LABEL_DESC_VIDEO       - LABEL_GDT + SA_RPL3
+
+; ----------------- constants definitions ------------------------
+BaseOfStack		          equ 0100h	        ; base addr of stack, grow from it
+PageDirBase               equ 100000h       ; starting addr of page dir
+PageTblBase               equ 101000h       ; starting addr of page tbl
+; ---------------------------------------------------------------
 
 LABEL_START:
 		mov	    ax, cs
@@ -21,8 +39,25 @@ LABEL_START:
 		mov     sp, BaseOfStack
 
 		mov     dh, 0                ; "Loading  "
-		call    DispStr
+		call    DispStrRealMode
 
+; get the memory #, stored in _dwMCRNumber
+        mov     ebx, 0
+        mov     di, _MemChkBuf       ; es:di points to ARDS
+.MemChkLoop:
+        mov     eax, 0E820h
+        mov     ecx, 20              ; size of ARDS
+        mov     edx, 0534D4150h      ; 'SMAP'
+        int     15h
+        jc      .MemChkFail
+        add     di, 20
+        inc     dword [_dwMCRNumber] ; ARDS #
+        cmp     ebx, 0
+        jne     .MemChkLoop
+        jmp     .MemChkOK
+.MemChkFail:
+        mov     dword [_dwMCRNumber], 0
+.MemChkOK:
 		; reset floppy disk driver
 		xor     ah, ah
 		xor     dl, dl
@@ -75,7 +110,7 @@ LABEL_GOTO_NEXT_SECTOR_IN_ROOT_DIR:
 
 LABEL_NO_KERNELBIN:
 		mov     dh, 2                ; show the string of sequence #2
-		call    DispStr
+		call    DispStrRealMode
 
  		jmp     $
 
@@ -125,11 +160,28 @@ LABEL_FILE_LOADED:
         call    KillMotor
 
 		mov     dh, 1          ; print "Ready."
-		call    DispStr
+		call    DispStrRealMode
 
-;---------- Jump to loader.bin and execute, handle the control to loader ---------------
-		jmp     $
-;---------------------------------------------------------------------------------------
+        ; jump into protect mode
+		; load GDTR
+        lgdt    [GdtPtr]
+
+        ; close interrupts
+        cli
+
+        ; open address line A20
+        in      al, 92h
+        or      al, 00000010b
+        out     92h, al
+
+        ; prepare cr0
+        mov     eax, cr0
+        or      eax, 1
+        mov     cr0, eax
+
+        jmp     dword SelectorFlatC:(BaseOfLoaderPhyAddr+LABEL_PM_START)
+        
+        jmp     $
 
 ; --------------------------------------------------------
 wRootDirSizeForLoop      dw  RootDirSectors      ; sector # taken by root directory, will decrement to 0
@@ -146,7 +198,7 @@ Message2                 db  "No KERNEL"         ; sequence # 2
 ; --------------------------------------------------------
 
 ; show up the string, given the sequence # of string (0-based) in dh
-DispStr:
+DispStrRealMode:
 	mov	    ax, MessageLength
 	mul     dh
 	add     ax, LoadMessage      ; get the correct position of message from sequence #
@@ -266,3 +318,178 @@ KillMotor:
         pop     dx
         ret
 
+; This is the code in protect mode, jumped from real mode from LABEL_FILE_LOADED
+[SECTION .s32]
+ALIGN    32
+[BITS    32]
+
+LABEL_PM_START:
+        mov     ax, SelectorVideo
+        mov     gs, ax
+
+        mov     ax, SelectorFlatRW
+        mov     ds, ax
+        mov     es, ax
+        mov     fs, ax
+        mov     ss, ax
+        mov     esp, TopOfStack
+
+        push    szMemChkTitle
+        call    DispStr
+        add     esp, 4
+
+        call    DispMemInfo
+        call    SetupPaging
+
+        mov     ah, 0Fh
+        mov     al, 'P'
+        mov     [gs:((80 * 0 + 39) * 2)], ax
+        jmp     $
+
+%include        "lib.inc"
+
+DispMemInfo:
+		push    esi
+		push    edi
+		push    ecx
+
+		mov     esi, MemChkBuf
+		mov     ecx, [dwMCRNumer]   ; for (int i = 0; i < [MCRNumber]; i++) // get ARDS each time
+.loop:                              ; {
+		mov     edx, 5              ;    for (int j = 0; j < 5; j++)  // get a member in ARDS, 5 in total
+		mov     edi, ARDStruct      ;    {      // show up the five members
+.1: 
+        push    dword [esi]
+		call    DispInt             ;        DispInt(MemCheckBuf[j * 4]);  // show up the member
+		pop     eax      
+		stosd                       ;        ARDStruct[j * 4] = MemChkBuf[j * 4];
+		add     esi, 4
+		dec     edx
+		cmp     edx, 0
+		jnz     .1                  ;    }
+		call    DispReturn          ;    printf("\n");
+		cmp     dword [dwType], 1   ;    if (Type == AddressRangeMemory)
+		jne     .2                  ;    {
+		mov     eax, [dwBaseAddrLow];        // refer to the values defined in ARDStruct
+		add     eax, [dwLengthLow]  ;    
+		cmp     eax, [dwMemSize]    ;        if (BaseAddrLow + LengthLow > MemSize)
+		jb      .2                  ;
+		mov     [dwMemSize], eax    ;            MemSize = BaseAddrLow + LengthLow;
+.2:                                 ;     }
+		loop    .loop               ; }
+    
+	    call    DispReturn          ; printf("\n");
+		push    szRAMSize           ;
+		call    DispStr             ; printf("RAM size:");
+		add     esp, 4 
+
+		push    dword [dwMemSize]
+		call    DispInt             ; DispInt(MemSize);
+		add     esp, 4
+
+		pop     ecx                 ; // print out all info for each ARDS,
+		pop     edi                 ; // and print out the max memory size needed
+		pop     esi
+		ret
+; -------------------------------------------------------------------------
+
+; start paging mechanism -----------------------------------------
+; page: continuous chunk of memory, size 4KB
+; page table: 1024 * 4 bytes (fit into 1 page)
+; page table entry: 1024 entries in each page table, each entry points to a physical page
+; page directory: 1024 * 4 bytes (fit into 1 page)
+; page directory entry: 1024 entries in each page directory, each entry points to a page table
+SetupPaging:
+		; calculate how many PDE (or page table) is required according to memory size
+		xor     edx, edx
+		mov     eax, [dwMemSize]
+		mov     ebx, 400000h        ; 400000h = 4M = 1024 (page table entry) * 4096 (size of a physical page), memory size of a page table
+		div     ebx
+		mov     ecx, eax            ; ecx is the number of page tables, or PDE
+		test    edx, edx
+		jz      .no_remainder
+		inc     ecx                 ; add one page table if there is remainder
+.no_remainder:
+		push    ecx                 ; store the number of page tables
+
+		; to simplify, all linear address equals to its physical address
+
+		; initiate page directory
+		mov     ax, SelectorFlatRW         
+		mov     es, ax
+		mov     edi, PageDirBase         ; base address is PageDirBase0
+		xor     eax, eax
+		mov     eax, PageTblBase | PG_P | PG_USU | PG_RWW
+.1:
+		stosd                      ; move edi by 4 each time, initialize one PDE
+		add		eax, 4096          ; for simplicity, all page tables are continuous in memory
+		loop    .1
+
+		; initiate all page tables (1Kpage table entries, 4M memory)
+		; still use the same seg SelectorFlatRW for es
+		pop     eax                 ; get the number of page tables
+		mov     ebx, 1024           ; 1024 page table entries for each page table
+		mul     ebx
+		mov     ecx, eax            ; PTE No. = Page table No. * 1024
+		mov     edi, PageTblBase    ; base address is PageTblBase0
+		xor     eax, eax
+		mov     eax, PG_P | PG_USU | PG_RWW
+.2:
+		stosd                   ; initialize one PTE
+		add     eax, 4096       ; each page points to 4K space
+		loop    .2
+
+		; start paging mechanism
+		mov     eax, PageDirBase
+		mov     cr3, eax        ; give the PD base address to cr3
+		mov     eax, cr0
+		or      eax, 80000000h
+		mov     cr0, eax        ; set bit PG for cr0
+		jmp     short .3
+.3:
+		nop
+
+		ret	
+; finished starting paging mechanism --------------------------------------
+
+[SECTION .data1]  ; data seg
+ALIGN	32
+
+LABEL_DATA:
+; used in real mode:
+; strings
+_szMemChkTitle:                 db      "BaseAddrL BaseAddrH LengthLow LengthHigh   Type", 0Ah, 0  
+_szRAMSize                      db      "RAM size:", 0
+_szReturn                       db      0Ah, 0
+
+; variables
+_dwMCRNumber:                   dd        0         ; number of memory check results
+_dwDispPos:                     dd        (80 * 6 + 0) * 2      ; display position
+_dwMemSize:                     dd        0
+_ARDStruct:              ; Address Range Descriptor Structure
+		_dwBaseAddrLow:         dd        0
+		_dwBaseAddrHigh:        dd        0
+		_dwLengthLow:           dd        0
+		_dwLengthHigh:          dd        0
+		_dwType:                dd        0
+_MemChkBuf:    times   256      db        0
+
+; used in protect mode (need to offset from seg base addr):
+szMemChkTitle            equ     BaseOfLoaderPhyAddr + _szMemChkTitle   
+szRAMSize                equ     BaseOfLoaderPhyAddr + _szRAMSize       
+szReturn                 equ     BaseOfLoaderPhyAddr + _szReturn      
+dwDispPos                equ     BaseOfLoaderPhyAddr + _dwDispPos       
+dwMemSize                equ     BaseOfLoaderPhyAddr + _dwMemSize       
+dwMCRNumer               equ     BaseOfLoaderPhyAddr + _dwMCRNumber     
+ARDStruct                equ     BaseOfLoaderPhyAddr + _ARDStruct       
+		dwBaseAddrLow    equ     BaseOfLoaderPhyAddr + _dwBaseAddrLow   
+		dwBaseAddrHigh   equ     BaseOfLoaderPhyAddr + _dwBaseAddrHigh  
+		dwLengthLow      equ     BaseOfLoaderPhyAddr + _dwLengthLow     
+		dwLengthHigh     equ     BaseOfLoaderPhyAddr + _dwLengthHigh    
+		dwType           equ     BaseOfLoaderPhyAddr + _dwType          
+MemChkBuf                equ     BaseOfLoaderPhyAddr + _MemChkBuf       
+
+; setup the stack
+StackSpace:     times    1024   db      0
+TopOfStack:	    equ	     BaseOfLoaderPhyAddr + $
+; END of [SECTION .data1]
