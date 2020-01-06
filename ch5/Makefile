@@ -1,13 +1,11 @@
 # Makefile for loader.asm
 # loader.asm: the simple loader printing 'L', Chapter 4
-# loader2.asm: the loader printing random chars, Chapter 3.4
 
 # To check the space and tabs for the correctness of Makefile, use: cat -e -t -v Makefile
 # https://stackoverflow.com/questions/16931770/makefile4-missing-separator-stop
 
 BOOT:=boot.asm
 LDR:=loader.asm
-LDR2:=loader2.asm
 # no empty space among ".asm,.com,$(ASM)"
 BOOT_BIN:=$(subst .asm,.bin,$(BOOT)) # this is string sub function, or simply: pmtest1.com 
 LDR_BIN:=$(subst .asm,.bin,$(LDR))
