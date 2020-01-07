@@ -1,5 +1,4 @@
-# Makefile for loader.asm
-# loader.asm: the simple loader printing 'L', Chapter 4
+# Makefile
 
 # To check the space and tabs for the correctness of Makefile, use: cat -e -t -v Makefile
 # https://stackoverflow.com/questions/16931770/makefile4-missing-separator-stop
@@ -37,7 +36,7 @@ $(LDR_BIN) : $(LDR)
 	nasm $< -o $@ 
 
 $(KERNEL_BIN) : $(KERNEL_O)
-	ld -m elf_i386 -s -o $@ $<
+	ld -m elf_i386 -s -Ttext 0x30400 -o $@ $<
 
 $(KERNEL_O) : $(KERNEL)
 	nasm -f elf -o $@ $<

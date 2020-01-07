@@ -27,8 +27,6 @@ SelectorVideo             equ LABEL_DESC_VIDEO       - LABEL_GDT + SA_RPL3
 
 ; ----------------- constants definitions ------------------------
 BaseOfStack		          equ 0100h	        ; base addr of stack, grow from it
-PageDirBase               equ 100000h       ; starting addr of page dir
-PageTblBase               equ 101000h       ; starting addr of page tbl
 ; ---------------------------------------------------------------
 
 LABEL_START:
@@ -344,7 +342,19 @@ LABEL_PM_START:
         mov     ah, 0Fh
         mov     al, 'P'
         mov     [gs:((80 * 0 + 39) * 2)], ax
-        jmp     $
+
+		call    initKernel
+
+        jmp     SelectorFlatC:KernelEntryPointPhyAddr
+; after the above jmp, the memory is used as: (see Figure 5.8)
+; 0-500h: reserved by BIOS
+; 500h-9FC00h: free to use:
+;			  7C00h-7E00h: used for boot.bin, first booting sector
+;             90000h-9FBFFh: used for loader.bin
+;             80000h-8FFFFh: used for kernel.bin
+;             30000h-7FFFFh: used for kernel.bin after loaded, entry addr: 30400h
+; 9FC00h-100000h: reserved by system
+; >100000h: free to use: used for page dir and tables
 
 %include        "lib.inc"
 
@@ -452,6 +462,35 @@ SetupPaging:
 		ret	
 ; finished starting paging mechanism --------------------------------------
 
+; move the kernel.bin into the virtual address specified by ELF:
+; Check the Program Header in ELF, memcpy(p_vaddr, BaseOfKernelFilePhyAddr + p_offset, p_filesz)
+initKernel:
+		xor     esi, esi
+		mov     cx, word [BaseOfKernelFilePhyAddr+2Ch]   ; get e_phnum, number of program header
+		movzx   ecx, cx
+		mov     esi, [BaseOfKernelFilePhyAddr+1Ch]       ; get e_phoff, offset w.r.t. ELF start
+		add     esi, BaseOfKernelFilePhyAddr             ; reach the start of 1st program header
+.Begin:
+		mov     eax, [esi + 0]
+		cmp     eax, 0                    ; file type is PT_NULL, stop
+		jz      .NoAction
+		; memcpy((void *)(pPHdr->p_vaddr), baseAddr + pPHdr->p_offset, pPHdr->p_filzesz)
+		; push the arguments for use of memcpy
+		push    dword [esi + 010h]      ; p_filesz
+	    mov     eax, [esi + 04h]        ; p_offset
+		add     eax, BaseOfKernelFilePhyAddr
+		push    eax
+		push    dword [esi + 08h]       ; p_vaddr
+		call    MemCpy
+		add     esp, 12  
+.NoAction:
+		add     esi, 020h                 ; move to next ELF, esi += e_phentsize
+		dec     ecx
+		jnz     .Begin
+
+		ret
+; --------------------------------------------------------------------------
+
 [SECTION .data1]  ; data seg
 ALIGN	32
 
@@ -490,6 +529,6 @@ ARDStruct                equ     BaseOfLoaderPhyAddr + _ARDStruct
 MemChkBuf                equ     BaseOfLoaderPhyAddr + _MemChkBuf       
 
 ; setup the stack
-StackSpace:     times    1024   db      0
+StackSpace:     times    1000h   db      0
 TopOfStack:	    equ	     BaseOfLoaderPhyAddr + $
 ; END of [SECTION .data1]
