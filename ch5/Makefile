@@ -7,12 +7,14 @@ BOOT:=boot.asm
 LDR:=loader.asm
 KERNEL:=kernel.asm
 STRING:=string.asm
+KLIBA:=kliba.asm
 START:=start.c
 # no empty space among ".asm,.com,$(ASM)"
 BOOT_BIN:=$(subst .asm,.bin,$(BOOT)) # this is string sub function, or simply: pmtest1.com 
 LDR_BIN:=$(subst .asm,.bin,$(LDR))
 KERNEL_O:=$(subst .asm,.o,$(KERNEL))
 STRING_O:=$(subst .asm,.o,$(STRING))
+KLIBA_O:=$(subst .asm,.o,$(KLIBA))
 START_O:=$(subst .c,.o,$(START))
 KERNEL_BIN:=$(subst .asm,.bin,$(KERNEL))
 
@@ -39,8 +41,8 @@ $(BOOT_BIN) : $(BOOT)
 $(LDR_BIN) : $(LDR)
 	nasm $< -o $@ 
 
-$(KERNEL_BIN) : $(KERNEL_O) $(STRING_O) $(START_O)
-	ld -m elf_i386 -s -Ttext 0x30400 -o $@ $(KERNEL_O) $(STRING_O) $(START_O)
+$(KERNEL_BIN) : $(KERNEL_O) $(STRING_O) $(START_O) $(KLIBA_O)
+	ld -m elf_i386 -s -Ttext 0x30400 -o $@ $(KERNEL_O) $(STRING_O) $(START_O) $(KLIBA_O)
 
 $(KERNEL_O) : $(KERNEL)
 	nasm -f elf -o $@ $<
@@ -48,5 +50,8 @@ $(KERNEL_O) : $(KERNEL)
 $(STRING_O) : $(STRING)
 	nasm -f elf -o $@ $<
 
+$(KLIBA_O) : $(KLIBA)
+	nasm -f elf -o $@ $<
+
 $(START_O) : $(START)
-	gcc -m32 -c -o $@ $<	
+	gcc -m32 -c -fno-builtin -o $@ $<	

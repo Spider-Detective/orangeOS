@@ -3,14 +3,14 @@
 #include "protect.h"
 
 PUBLIC  void* memcpy(void* pDst, void* pSrc, int iSize);
-// PUBLIC  void disp_str(char* pszInfo);
+PUBLIC  void disp_str(char* pszInfo);
 
 PUBLIC  u8          gdt_ptr[6];       /* 0~15:Limit, 16~47:Base */
 PUBLIC DESCRIPTOR   gdt[GDT_SIZE];
 
 PUBLIC void cstart() {
-    // disp_str("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"
-            //  "-----\"cstart\" begins-----");
+    disp_str("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"
+             "-----\"cstart\" begins-----");
 
     // copy the GDT in LOADER into the new gdt
     memcpy(&gdt,
