@@ -353,7 +353,7 @@ LABEL_PM_START:
 ;             90000h-9FBFFh: used for loader.bin
 ;             80000h-8FFFFh: used for kernel.bin
 ;             30000h-7FFFFh: used for kernel.bin after loaded, entry addr: 30400h
-; 9FC00h-100000h: reserved by system
+; 9FC00h-100000h: reserved by hardware
 ; >100000h: free to use: used for page dir and tables
 
 %include        "lib.inc"
