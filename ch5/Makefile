@@ -9,18 +9,18 @@ ENTRYPOINT           = 0x30400
 ENTRYOFFSET          = 0x400
 
 ASM                  = nasm
-DASM                 = ndisam
+DASM                 = ndisasm
 CC                   = gcc
 LD                   = ld
 ASMBFLAGS            = -I boot/include/      # for boot.bin
 ASMKFLAGS            = -I include/ -f elf    # for kernel.bin
-CFLAGS               = -I include/ -m32 -c -fno-builtin 
+CFLAGS               = -I include/ -m32 -c -fno-stack-protector -fno-builtin 
 LDFLAGS              = -m elf_i386 -s -Ttext $(ENTRYPOINT)
 DASMFLAGS            = -u -o $(ENTRYPOINT) -e $(ENTRYOFFSET)
 
 ORANGESBOOT          = boot/boot.bin boot/loader.bin
 ORANGESKERNEL        = kernel.bin
-OBJS                 = kernel/kernel.o kernel/start.o lib/kliba.o lib/string.o
+OBJS                 = kernel/kernel.o kernel/start.o kernel/i8259.o kernel/global.o kernel/protect.o lib/klib.o lib/kliba.o lib/string.o
 DASMOUTPUT           = kernel.bin.asm
 FLOPPY               = /mnt/floppy/
 IMG                  = a.img
@@ -59,14 +59,27 @@ boot/loader.bin : boot/loader.asm boot/include/load.inc \
                     boot/include/fat12hdr.inc boot/include/pm.inc boot/include/lib.inc
 		$(ASM) $(ASMBFLAGS) -o $@ $<
 
-
 $(ORANGESKERNEL) : $(OBJS)
 	$(LD) $(LDFLAGS) -o $@ $(OBJS)
 
 kernel/kernel.o : kernel/kernel.asm
 	$(ASM) $(ASMKFLAGS) -o $@ $<
 
-kernel/start.o : kernel/start.c include/type.h include/const.h include/protect.h
+kernel/start.o : kernel/start.c include/type.h include/const.h include/protect.h \
+				   include/proto.h include/string.h include/global.h
+	$(CC) $(CFLAGS) -o $@ $<
+
+kernel/i8259.o : kernel/i8259.c include/type.h include/const.h include/protect.h \
+				   include/proto.h
+	$(CC) $(CFLAGS) -o $@ $<	
+
+kernel/global.o : kernel/global.c
+	$(CC) $(CFLAGS) -o $@ $<	
+
+kernel/protect.o : kernel/protect.c
+	$(CC) $(CFLAGS) -o $@ $<
+
+lib/klib.o : lib/klib.c
 	$(CC) $(CFLAGS) -o $@ $<
 
 lib/kliba.o : lib/kliba.asm

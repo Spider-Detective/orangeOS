@@ -1,12 +1,9 @@
 #include "type.h"
 #include "const.h"
 #include "protect.h"
-
-PUBLIC  void* memcpy(void* pDst, void* pSrc, int iSize);
-PUBLIC  void disp_str(char* pszInfo);
-
-PUBLIC  u8          gdt_ptr[6];       /* 0~15:Limit, 16~47:Base */
-PUBLIC DESCRIPTOR   gdt[GDT_SIZE];
+#include "proto.h"
+#include "string.h"
+#include "global.h"
 
 PUBLIC void cstart() {
     disp_str("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"
@@ -24,6 +21,16 @@ PUBLIC void cstart() {
 
     *p_gdt_limit = GDT_SIZE * sizeof(DESCRIPTOR) - 1;
     *p_gdt_base = (u32)&gdt;
+
+    // copy the new limit and base in idt back to idt_ptr
+    u16* p_idt_limit = (u16*)(&idt_ptr[0]);
+    u32* p_idt_base = (u32*)(&idt_ptr[2]);
+
+    *p_idt_limit = IDT_SIZE * sizeof(GATE) - 1;
+    *p_idt_base = (u32)&idt;
+
+    // initialize IDT and start response to interrupts here
+    init_prot();
 
     disp_str("-----\"cstart\" ends-----\n");
 }

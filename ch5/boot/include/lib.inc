@@ -69,9 +69,9 @@ DispInt:
 
 ;; show up a string
 DispStr:
-        push    ebp
-        mov     ebp, esp
-        push    ebx
+        push    ebp       ; esp -= 4, then put [esp] = ebp
+        mov     ebp, esp  ; now ebp points to esp, and [esp] = old pushed ebp value
+        push    ebx       ; so the first argument is [ebp + 8]
         push    esi
         push    edi
 
