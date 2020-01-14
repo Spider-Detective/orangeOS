@@ -35,10 +35,18 @@ sudo make install
 ```bochs```.
 Then type enter, type c
 
-### For ch3/ and on, [FreeDos](http://bochs.sourceforge.net/diskimages.html) is used as the boot image
+### For ch3/ and ch4/, [FreeDos](http://bochs.sourceforge.net/diskimages.html) is used as the boot image
 * Create floppy image **pm.img** by ```bximage```
 * To compile and write into floppy: ```make all``` (```make clean``` also available)
 * To start the FreeDos image: ```bochs```.
 * To start the OS image: 
     * in Bochs terminal, clean up floppy b by ``` format B: ``` (for the first time only) 
     * type ```B:\[image_name].com```
+    
+### For ch5/ and on, boot.bin is ready
+* Create floppy image **a.img** by ```bximage```
+* To compile and write into floppy, please review the Makefile, or simply: 
+```make image```
+* To run in Bochs **with debugger**:
+```bochs```.
+Then type enter, type c
