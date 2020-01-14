@@ -69,9 +69,9 @@ DispInt:
 
 ;; show up a string
 DispStr:
-        push    ebp
-        mov     ebp, esp
-        push    ebx
+        push    ebp       ; esp -= 4, then put [esp] = ebp
+        mov     ebp, esp  ; now ebp points to esp, and [esp] = old pushed ebp value
+        push    ebx       ; so the first argument is [ebp + 8]
         push    esi
         push    edi
 
@@ -85,6 +85,8 @@ DispStr:
         cmp     al, 0Ah           ; check if the current char is \n
         jnz     .3                ; jump if (al != 0Ah), and show the char
         push    eax               ; if it is \n, update edi (current display position) to next line
+        push    ebx               ; NOTICE: in protect mode, need to protect 
+                                  ; ebx when using bl below, still don't know why
         mov     eax, edi
         mov     bl, 160           ; 160 is the length of the line
         div     bl                ; eax / 160, save result in eax
@@ -93,6 +95,7 @@ DispStr:
         mov     bl, 160
         mul     bl
         mov     edi, eax
+        pop     ebx
         pop     eax
         jmp     .1
 .3:

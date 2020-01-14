@@ -339,9 +339,9 @@ LABEL_PM_START:
         call    DispMemInfo
         call    SetupPaging
 
-        mov     ah, 0Fh
-        mov     al, 'P'
-        mov     [gs:((80 * 0 + 39) * 2)], ax
+        ; mov     ah, 0Fh
+        ; mov     al, 'P'
+        ; mov     [gs:((80 * 0 + 39) * 2)], ax
 
 		call    initKernel
 

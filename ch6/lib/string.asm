@@ -1,8 +1,9 @@
-; copy the memory, similar to memcpy in C
-; In C, void *MemCpy(void* es:pDest, void* ds:pSrc, int iSize);
 [SECTION .text]
 
 global  memcpy
+
+; copy the memory, similar to memcpy in C
+; In C, void *MemCpy(void* es:pDest, void* ds:pSrc, int iSize);
 memcpy:
         push    ebp
         mov     ebp, esp
