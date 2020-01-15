@@ -3,6 +3,9 @@
 # To check the space and tabs for the correctness of Makefile, use: cat -e -t -v Makefile
 # https://stackoverflow.com/questions/16931770/makefile4-missing-separator-stop
 
+# To print out the dependency needed in Makefile for $filename$:
+# gcc -M $filename$ -I include
+
 # Entry point of orangeS: same value as KernelEntryPointPhyAddr in load.inc
 ENTRYPOINT           = 0x30400
 # Offset of entry point in kernel
