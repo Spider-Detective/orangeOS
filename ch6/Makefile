@@ -20,7 +20,9 @@ DASMFLAGS            = -u -o $(ENTRYPOINT) -e $(ENTRYOFFSET)
 
 ORANGESBOOT          = boot/boot.bin boot/loader.bin
 ORANGESKERNEL        = kernel.bin
-OBJS                 = kernel/kernel.o kernel/start.o kernel/i8259.o kernel/global.o kernel/protect.o lib/klib.o lib/kliba.o lib/string.o
+OBJS                 = kernel/kernel.o kernel/start.o kernel/main.o\
+                               kernel/i8259.o kernel/global.o kernel/protect.o\
+							   lib/klib.o lib/kliba.o lib/string.o
 DASMOUTPUT           = kernel.bin.asm
 FLOPPY               = /mnt/floppy/
 IMG                  = a.img
@@ -62,24 +64,31 @@ boot/loader.bin : boot/loader.asm boot/include/load.inc \
 $(ORANGESKERNEL) : $(OBJS)
 	$(LD) $(LDFLAGS) -o $@ $(OBJS)
 
-kernel/kernel.o : kernel/kernel.asm
+kernel/kernel.o : kernel/kernel.asm include/sconst.inc
 	$(ASM) $(ASMKFLAGS) -o $@ $<
 
 kernel/start.o : kernel/start.c include/type.h include/const.h include/protect.h \
-				   include/proto.h include/string.h include/global.h
+				   include/proto.h include/proc.h include/string.h include/global.h
+	$(CC) $(CFLAGS) -o $@ $<
+
+kernel/main.o : kernel/main.c include/type.h include/const.h include/protect.h \
+				   include/proto.h include/proc.h include/string.h include/global.h
 	$(CC) $(CFLAGS) -o $@ $<
 
 kernel/i8259.o : kernel/i8259.c include/type.h include/const.h include/protect.h \
 				   include/proto.h
 	$(CC) $(CFLAGS) -o $@ $<	
 
-kernel/global.o : kernel/global.c
+kernel/global.o : kernel/global.c include/type.h include/const.h include/protect.h \
+				   include/proto.h include/proc.h include/global.h
 	$(CC) $(CFLAGS) -o $@ $<	
 
-kernel/protect.o : kernel/protect.c
+kernel/protect.o : kernel/protect.c include/type.h include/const.h include/protect.h \
+				   include/proto.h include/proc.h include/global.h
 	$(CC) $(CFLAGS) -o $@ $<
 
-lib/klib.o : lib/klib.c
+lib/klib.o : lib/klib.c include/type.h include/const.h include/protect.h \
+				   include/proto.h include/proc.h include/string.h include/global.h
 	$(CC) $(CFLAGS) -o $@ $<
 
 lib/kliba.o : lib/kliba.asm

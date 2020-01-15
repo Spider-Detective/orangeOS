@@ -6,10 +6,12 @@
 #include "const.h"
 #include "protect.h"
 #include "proto.h"
+#include "proc.h"
 #include "global.h"
 
 PRIVATE void init_idt_desc(unsigned char vector, u8 desc_type,
                             int_handler handler, unsigned char privilege);
+PRIVATE void init_descriptor(DESCRIPTOR* p_desc, u32 base, u32 limit, u16 attribute);
 
 // import int handler functions from kernel.asm
 // For exceptions:
@@ -146,10 +148,27 @@ PUBLIC void init_prot() {
 
 	init_idt_desc(INT_VECTOR_IRQ8 + 7,    DA_386IGate,
 			      hwint15,                PRIVILEGE_KRNL);
+	
+	// fill TSS descriptor into GDT
+	memset(&tss, 0, sizeof(tss));
+	tss.ss0 = SELECTOR_KERNEL_DS;
+	init_descriptor(&gdt[INDEX_TSS],
+					vir2phys(seg2phys(SELECTOR_KERNEL_DS), &tss),
+					sizeof(tss) - 1,
+					DA_386TSS);
+	tss.iobase = sizeof(tss);       // no I/O bitmap
+
+	// fill LDT descriptor into GDT
+	init_descriptor(&gdt[INDEX_LDT_FIRST],
+					vir2phys(seg2phys(SELECTOR_KERNEL_DS), proc_table[0].ldts),
+					LDT_SIZE * sizeof(DESCRIPTOR) - 1,
+					DA_LDT);
 }
 
-// initialize interrupt gate descriptor (defined in protect.h)
-// NOTICE: here int_handler is used, see the function pointer def in type.h
+/* 
+ * Initialize interrupt gate descriptor (defined in protect.h)
+ * NOTICE: here int_handler is used, see the function pointer def in type.h
+ */
 PRIVATE void init_idt_desc(unsigned char vector, u8 desc_type,
                             int_handler handler, unsigned char privilege) {
     // see Code 3.36 for initialzing Gate
@@ -160,6 +179,26 @@ PRIVATE void init_idt_desc(unsigned char vector, u8 desc_type,
     p_gate->dcount        = 0;
     p_gate->attr          = desc_type | (privilege << 5);
     p_gate->offset_high   = (base >> 16) & 0xFFFF;
+}
+
+/*
+ * Initialize seg descriptor
+ */
+PRIVATE void init_descriptor(DESCRIPTOR* p_desc, u32 base, u32 limit, u16 attribute) {
+	p_desc -> limit_low        = limit & 0x0FFFF;
+	p_desc -> base_low         = base & 0x0FFFF;
+	p_desc -> base_mid         = (base >> 16) & 0x0FF;
+	p_desc -> attr1            = attribute & 0x0FF;
+	p_desc -> limit_high_attr2 = ((limit >> 16) & 0x0F) | (attribute >> 8) & 0xF0;
+	p_desc -> base_high        = (base >> 24) & 0x0FF;
+}
+
+/* 
+ * Convert given segment to physical address using the base in gdt
+ */
+PUBLIC u32 seg2phys(u16 seg) {
+	DESCRIPTOR* p_dest = &gdt[seg >> 3];   // each selector has length 0x8
+	return (p_dest -> base_high << 24 | p_dest -> base_mid << 16 | p_dest -> base_low);
 }
 
 /*

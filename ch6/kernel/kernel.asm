@@ -2,16 +2,21 @@
 ; nasm -f elf kernel.asm -o kernel.o
 ; ld -m elf_i386 -s kernel.o -o kernel.bin    # -s means "strip all"
 
-SELECTOR_KERNEL_CS      equ 8
+%include "sconst.inc"
 
 extern cstart      
+extern kernel_main
 extern exception_handler
 extern spurious_irq
 
 ; global variables
 extern gdt_ptr     
 extern idt_ptr
+extern p_proc_ready
+extern tss
 extern disp_pos
+
+bits 32
 
 [SECTION .bss]
 StackSpace              resb     2 * 1024
@@ -19,7 +24,9 @@ StackTop:
 
 [section .text]
 
-global _start      ; output _start function from assembly
+global _start      ; start kernel, entry point of kernel
+
+global restart     ; function to trigger process A
 
 ; all exception types are listed in Table 3.8
 global	divide_error
@@ -75,9 +82,15 @@ csinit:
 		;jmp     0x40:0  ; create a exception with error code
         ;push    0
         ;popfd      ; pop stack top into EFLAGS
-		sti
+		
+		; load the initialized tss
+		xor     eax, eax
+		mov     ax, SELECTOR_TSS
+		ltr     ax
 
-        hlt
+		jmp     kernel_main   ; function in main.c, will prepare process table and call restart()
+
+        ;hlt
 
 ; Interruption functions for hardwares (master and slave)
 ; When int happens, simply call the spurious_irq in i8259.c with a int vec as parameter
@@ -227,3 +240,26 @@ exception:
         add     esp, 4*2           ; restore the stack, move esp to bypass pushed errorcode and int vector
                                    ; stack will be: EIP, CS, EFLAGS, see Figure 3.45
         hlt
+
+; After called kernel_main in main.c, the process table is ready
+; pop all related regs and leave the stack as Figure 3.45
+; Finally, call iretd to ring0 -> ring1
+; constants are defined in sconst.inc
+restart:
+		mov     esp, [p_proc_ready]
+		lldt    [esp + P_LDT_SEL]          ; load the ldt selector in process table, see Page 180
+		lea     eax, [esp + P_STACKTOP]
+		mov     dword [tss + TSS3_S_SP0], eax  ; store the regs into tss
+
+		; get the values of regs in process table
+		pop     gs
+		pop     fs
+		pop     es
+		pop     ds
+		popad
+
+		add     esp, 4    ; jump over the retaddr defined in the process table
+
+		; ensure the stack has eip, cs, eflags, esp and ss
+		; when calling retd, the process will access the entry point: regs.eip == TestA
+		iretd

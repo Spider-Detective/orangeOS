@@ -1,6 +1,7 @@
 [SECTION .text]
 
 global  memcpy
+global  memset
 
 ; copy the memory, similar to memcpy in C
 ; In C, void *MemCpy(void* es:pDest, void* ds:pSrc, int iSize);
@@ -38,3 +39,35 @@ memcpy:
 
         ret
 ; end of memcpy
+
+; void memset(void* p_dst, char ch, int size);
+memset:
+        push    ebp
+        mov     ebp, esp
+
+        push    esi
+        push    edi
+        push    ecx
+
+        mov     edi, [ebp + 8]     ; p_dst
+        mov     edx, [ebp + 12]    ; ch
+        mov     ecx, [ebp + 16]    ; size
+.1:  
+        cmp     ecx, 0
+        jz      .2
+
+        ; copy the byte in dl
+        mov     byte [edi], dl
+        inc     edi
+
+        dec     ecx
+        jmp     .1
+.2:
+        pop     ecx
+        pop     edi
+        pop     esi
+        mov     esp, ebp
+        pop     ebp
+
+        ret
+; end of memset
