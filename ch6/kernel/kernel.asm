@@ -103,7 +103,27 @@ csinit:
 
 ALIGN   16
 hwint00:                ; int handler for irq 0 (the clock)
-		hwint_master    0
+		; push all regs to avoid modification in int handler
+		pushad
+		push    ds
+		push    es
+		push    fs
+		push    gs
+
+		; update the char on line 0, col 0 w.r.t clock int
+		inc     byte [gs:0]   
+
+        ; reenable the int after int happens
+		mov     al, EOI
+		out     INT_M_CTL, al
+
+		pop     gs
+		pop     fs
+		pop     es
+		pop     ds
+		popad
+
+		iretd
 
 ALIGN   16
 hwint01:                ; int handler for irq 1 (keyboard)
