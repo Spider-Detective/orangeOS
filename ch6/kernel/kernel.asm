@@ -150,7 +150,7 @@ hwint00:                ; int handler for irq 0 (the clock)
 
 		; up to this point, esp is pointing to the bottom of regs (lowest addr)
 		; we need to store the top of regs (highest addr) in process table of A to esp0 in tss
-		; esp0 is used for next ring1 -> ring0
+		; esp0 is used for next ring1 -> ring0, same as in restart()
 		lea     eax, [esp + P_STACKTOP]
 		mov     dword [tss + TSS3_S_SP0], eax
 
