@@ -8,6 +8,8 @@ extern cstart
 extern kernel_main
 extern exception_handler
 extern spurious_irq
+extern disp_str
+extern delay
 
 ; global variables
 extern gdt_ptr     
@@ -15,8 +17,12 @@ extern idt_ptr
 extern p_proc_ready
 extern tss
 extern disp_pos
+extern k_reenter
 
 bits 32
+
+[SECTION .data]
+clock_int_msg           db       "^", 0
 
 [SECTION .bss]
 StackSpace              resb     2 * 1024
@@ -103,27 +109,62 @@ csinit:
 
 ALIGN   16
 hwint00:                ; int handler for irq 0 (the clock)
+		sub     esp, 4                     ; jump over the retaddr in process table
 		; push all regs to avoid modification in int handler
 		pushad
 		push    ds
 		push    es
 		push    fs
 		push    gs
+		mov     dx, ss
+		mov     ds, dx
+		mov     es, dx
 
 		; update the char on line 0, col 0 w.r.t clock int
-		inc     byte [gs:0]   
-
+		inc     byte [gs:0]  
+		
         ; reenable the int after int happens
 		mov     al, EOI
 		out     INT_M_CTL, al
 
+		inc     dword [k_reenter]
+		cmp     dword [k_reenter], 0
+		jne     .re_enter
+
+		mov     esp, StackTop              ; enter kernel stack
+
+		sti
+
+		push    clock_int_msg              ; print out ^
+		call    disp_str
+		add     esp, 4 
+
+		; manually add delays to show the effect of re-entering interrupt
+		; push    3
+		; call    delay
+		; add     esp, 4
+
+		cli
+
+		mov     esp, [p_proc_ready]        ; leave kernel stack
+
+		; up to this point, esp is pointing to the bottom of regs (lowest addr)
+		; we need to store the top of regs (highest addr) in process table of A to esp0 in tss
+		; esp0 is used for next ring1 -> ring0
+		lea     eax, [esp + P_STACKTOP]
+		mov     dword [tss + TSS3_S_SP0], eax
+
+.re_enter:
+		dec     dword [k_reenter]
 		pop     gs
 		pop     fs
 		pop     es
 		pop     ds
 		popad
 
-		iretd
+		add     esp, 4
+
+		iretd       ; jump back to process TestA
 
 ALIGN   16
 hwint01:                ; int handler for irq 1 (keyboard)

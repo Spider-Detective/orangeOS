@@ -23,6 +23,9 @@ typedef struct s_gate {
     u16    offset_high;
 }GATE;
 
+/*
+ * es0: we need to set esp0 to the stack in current process table before ring1 -> ring0
+ */
 typedef struct s_tss {
     u32    backlink;
     u32    esp0;         // stack pointer to use when interrupt
