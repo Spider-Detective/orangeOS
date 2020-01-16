@@ -83,3 +83,13 @@ void TestB() {
         delay(1);
     }
 }
+
+void TestC() {
+    int i = 0x2000;
+    while(1) {
+        disp_str("C");
+        disp_int(i++);
+        disp_str(".");
+        delay(1);
+    }
+}

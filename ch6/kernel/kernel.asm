@@ -8,6 +8,7 @@ extern cstart
 extern kernel_main
 extern exception_handler
 extern spurious_irq
+extern clock_handler
 extern disp_str
 extern delay
 
@@ -134,6 +135,9 @@ hwint00:                ; int handler for irq 0 (the clock)
 		mov     esp, StackTop              ; enter kernel stack
 
 		sti
+		push    0
+		call    clock_handler
+		add     esp, 4
 
 		push    clock_int_msg              ; print out ^
 		call    disp_str
@@ -147,6 +151,7 @@ hwint00:                ; int handler for irq 0 (the clock)
 		cli
 
 		mov     esp, [p_proc_ready]        ; leave kernel stack
+		lldt    [esp + P_LDT_SEL]
 
 		; up to this point, esp is pointing to the bottom of regs (lowest addr)
 		; we need to store the top of regs (highest addr) in process table of A to esp0 in tss

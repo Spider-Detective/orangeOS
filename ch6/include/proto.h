@@ -21,6 +21,7 @@ void restart();
 /* main.c */
 void TestA();
 void TestB();
+void TestC();
 
 /* i8259.c */
 PUBLIC void    init_8259A();
