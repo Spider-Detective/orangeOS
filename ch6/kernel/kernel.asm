@@ -19,6 +19,7 @@ extern p_proc_ready
 extern tss
 extern disp_pos
 extern k_reenter
+extern irq_table
 
 bits 32
 
@@ -102,74 +103,34 @@ csinit:
 ; Interruption functions for hardwares (master and slave)
 ; When int happens, simply call the spurious_irq in i8259.c with a int vec as parameter
 %macro hwint_master    1
-		push    %1
-		call    spurious_irq
-		add     esp, 4
-		hlt
-%endmacro
-
-ALIGN   16
-hwint00:                ; int handler for irq 0 (the clock)
-		sub     esp, 4                     ; jump over the retaddr in process table
-		; push all regs to avoid modification in int handler
-		pushad
-		push    ds
-		push    es
-		push    fs
-		push    gs
-		mov     dx, ss
-		mov     ds, dx
-		mov     es, dx
-
-		; update the char on line 0, col 0 w.r.t clock int
-		inc     byte [gs:0]  
+		call    save    ; return addr has been saved into the stack (process table) in RETADDR
 		
+		; prohibit clock int
+		in      al, INT_M_CTLMASK
+		or      al, (1 << %1)
+		out     INT_M_CTLMASK, al
+
         ; reenable the int after int happens
 		mov     al, EOI
 		out     INT_M_CTL, al
 
-		inc     dword [k_reenter]
-		cmp     dword [k_reenter], 0
-		jne     .re_enter
-
-		mov     esp, StackTop              ; enter kernel stack
-
 		sti
-		push    0
-		call    clock_handler
-		add     esp, 4
-
-		push    clock_int_msg              ; print out ^
-		call    disp_str
-		add     esp, 4 
-
-		; manually add delays to show the effect of re-entering interrupt
-		; push    3
-		; call    delay
-		; add     esp, 4
-
+		push    %1
+		call    [irq_table + 4 * %1]    ; handle the int
+		pop     ecx
 		cli
 
-		mov     esp, [p_proc_ready]        ; leave kernel stack
-		lldt    [esp + P_LDT_SEL]
+		; re-enable clock int
+		in      al, INT_M_CTLMASK
+		and     al, ~(1 << %1)
+		out     INT_M_CTLMASK, al
 
-		; up to this point, esp is pointing to the bottom of regs (lowest addr)
-		; we need to store the top of regs (highest addr) in process table of A to esp0 in tss
-		; esp0 is used for next ring1 -> ring0, same as in restart()
-		lea     eax, [esp + P_STACKTOP]
-		mov     dword [tss + TSS3_S_SP0], eax
+		ret             ; ret addr has been pushed, so go to either restart_reenter or restart
+%endmacro
 
-.re_enter:
-		dec     dword [k_reenter]
-		pop     gs
-		pop     fs
-		pop     es
-		pop     ds
-		popad
-
-		add     esp, 4
-
-		iretd       ; jump back to process TestA
+ALIGN   16
+hwint00:                ; int handler for irq 0 (the clock)
+        hwint_master    0
 
 ALIGN   16
 hwint01:                ; int handler for irq 1 (keyboard)
@@ -307,6 +268,30 @@ exception:
                                    ; stack will be: EIP, CS, EFLAGS, see Figure 3.45
         hlt
 
+save: 
+		; push all regs to avoid modification in int handler
+		pushad
+		push    ds
+		push    es
+		push    fs
+		push    gs
+		mov     dx, ss
+		mov     ds, dx
+		mov     es, dx
+
+		mov     eax, esp                      ; save the esp (starting addr of process table)
+
+		inc     dword [k_reenter]
+		cmp     dword [k_reenter], 0          ; if (k_reenter == 0) 
+		jne     .1                            ; {
+		mov     esp, StackTop                 ; enter kernel stack
+		push    restart                       ; push restart()
+		; cannot ret, because we manipulated the esp
+		jmp     [eax + RETADR - P_STACKBASE]  ; jump back to hwint00()
+.1:                                           ; else {
+		push    restart_reenter				  ; push restart_reenter()					
+		jmp     [eax + RETADR - P_STACKBASE]  ; jump back to hwint00()
+
 ; After called kernel_main in main.c, the process table is ready
 ; pop all related regs and leave the stack as Figure 3.45
 ; Finally, call iretd to ring0 -> ring1
@@ -316,7 +301,8 @@ restart:
 		lldt    [esp + P_LDT_SEL]          ; load the ldt selector in process table, see Page 180
 		lea     eax, [esp + P_STACKTOP]
 		mov     dword [tss + TSS3_S_SP0], eax  ; store the regs into tss
-
+restart_reenter:
+		dec     dword [k_reenter]
 		; get the values of regs in process table
 		pop     gs
 		pop     fs
@@ -329,3 +315,4 @@ restart:
 		; ensure the stack has eip, cs, eflags, esp and ss
 		; when calling retd, the process will access the entry point: regs.eip == TestA
 		iretd
+

@@ -1,6 +1,8 @@
 ; Library functions written in assembly
 ;
 
+%include "sconst.inc"
+
 extern disp_pos
 
 [SECTION .text]
@@ -9,6 +11,8 @@ global  disp_str
 global  disp_color_str
 global  out_byte
 global  in_byte
+global  enable_irq
+global  disable_irq
 
 ;; show up a string, void disp_str(char * info);
 disp_str:
@@ -99,9 +103,72 @@ out_byte:
 
 ; void in_byte(u16 port)
 in_byte:
-        mov    edx, [esp + 4]      ; port
-        xor    eax, eax
-        in     al, dx
+        mov     edx, [esp + 4]      ; port
+        xor     eax, eax
+        in      al, dx
         nop
         nop
+        ret
+
+; disable the interrupt of 8259 for a given irq
+; if (irq < 8)
+;     out_byte(INT_M_CTLMASK, in_byte(INT_M_CTLMASK) | (1 << (irq % 8)));
+; else
+;     out_byte(INT_S_CTLMASK, in_byte(INT_S_CTLMASK) | (1 << (irq % 8)));
+; if successfully disabled, set eax to be 1; otherwise (say already disabled) set to be 0
+disable_irq:
+        mov     ecx, [esp + 4]      ; irq number
+        pushf
+        cli
+        mov     ah, 1
+        rol     ah, cl              ; rotate cl bits to left, ah << (cl % 8)
+        cmp     cl, 8
+        jae     disable_8           ; go for slave
+disable_0:
+        in      al, INT_M_CTLMASK
+        test    al, ah
+        jnz     dis_already         ; already disabled
+        or      al, ah
+        out     INT_M_CTLMASK, al
+        popf
+        mov     eax, 1
+        ret
+disable_8:
+        in      al, INT_S_CTLMASK
+        test    al, ah
+        jnz     dis_already
+        or      al, ah
+        out     INT_S_CTLMASK, al
+        popf
+        mov     eax, 1
+        ret
+dis_already:
+        popf
+        xor     eax, eax
+        ret
+
+; enable the interrupt of 8259 for a given irq
+; if (irq < 8)
+;     out_byte(INT_M_CTLMASK, in_byte(INT_M_CTLMASK) & ~(1 << (irq % 8)));
+; else
+;     out_byte(INT_S_CTLMASK, in_byte(INT_S_CTLMASK) & ~(1 << (irq % 8)));
+enable_irq:
+        mov     ecx, [esp + 4]      ; irq number
+        pushf                       ; push all flags into stack
+        cli
+        mov     ah, ~1
+        rol     ah, cl              ; ah = ~(1 << (cl % 8))
+        cmp     cl, 8
+        jae     enable_8
+enable_0:
+        in      al, INT_M_CTLMASK
+        and     al, ah
+        out     INT_M_CTLMASK, al   ; clear the given irq bit on 8259
+        popf
+        ret
+enable_8:
+        in      al, INT_S_CTLMASK
+        and     al, ah
+        out     INT_S_CTLMASK, al   ; clear the given irq bit on 8259
+        popf
         ret

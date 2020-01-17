@@ -31,4 +31,18 @@
 #define INT_S_CTL      0xA0  /* I/O port for 2nd interrupt controller   <Slave>  */
 #define INT_S_CTLMASK  0xA1  /* Setting bits in this port disables ints <Slave>  */
 
+/* Hardware interrupts */
+#define NR_IRQ          16
+#define CLOCK_IRQ       0
+#define KEYBOARD_IRQ    1
+#define CASCADE_IRQ     2      /* cascade to second AT controller */
+#define ETHER_IRQ       3      
+#define SECONDARY_IRQ   3      /* RS232 int vec for port 2 */ 
+#define RS232_IRQ       4      /* RS232 int vec for port 1 */
+#define XT_WINI_IRQ     5      /* XT winchester */
+#define FLOPPY_IRQ      6
+#define PRINTER_IRQ     7
+#define AT_WINI_IRQ     14     /* AT winchester */
+
+
 #endif /* _ORANGES_CONST_H_ */

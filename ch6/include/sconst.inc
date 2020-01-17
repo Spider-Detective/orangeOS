@@ -25,7 +25,7 @@ P_LDT		    equ	P_LDT_SEL	+ 4
 
 TSS3_S_SP0	    equ	4
 
-; same int definition as in const.h, this is used for asm code
+; int ports, same int definition as in const.h, this is used for asm code
 INT_M_CTL       equ 0x20
 INT_M_CTLMASK   equ 0x21
 INT_S_CTL       equ 0xA0

@@ -47,10 +47,13 @@ PUBLIC int kernel_main() {
         selector_ldt += 1 << 3;
     }
     
-    k_reenter = -1;
+    k_reenter = 0;
 
     // start the process
     p_proc_ready = proc_table;
+
+    put_irq_handler(CLOCK_IRQ, clock_handler);    // register the clock int handler
+    enable_irq(CLOCK_IRQ);                        // enable the clock int
     restart();
 
     while (1) {}
