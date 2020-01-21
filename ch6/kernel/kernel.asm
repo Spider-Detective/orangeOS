@@ -20,6 +20,7 @@ extern tss
 extern disp_pos
 extern k_reenter
 extern irq_table
+extern sys_call_table
 
 bits 32
 
@@ -35,6 +36,8 @@ StackTop:
 global _start      ; start kernel, entry point of kernel
 
 global restart     ; function to trigger process A
+
+global sys_call    ; function to call system functions and features
 
 ; all exception types are listed in Table 3.8
 global	divide_error
@@ -279,7 +282,7 @@ save:
 		mov     ds, dx
 		mov     es, dx
 
-		mov     eax, esp                      ; save the esp (starting addr of process table)
+		mov     esi, esp                      ; save the esp (starting addr of process table)
 
 		inc     dword [k_reenter]
 		cmp     dword [k_reenter], 0          ; if (k_reenter == 0) 
@@ -287,10 +290,10 @@ save:
 		mov     esp, StackTop                 ; enter kernel stack
 		push    restart                       ; push restart()
 		; cannot ret, because we manipulated the esp
-		jmp     [eax + RETADR - P_STACKBASE]  ; jump back to hwint00()
+		jmp     [esi + RETADR - P_STACKBASE]  ; jump back to hwint00()
 .1:                                           ; else {
 		push    restart_reenter				  ; push restart_reenter()					
-		jmp     [eax + RETADR - P_STACKBASE]  ; jump back to hwint00()
+		jmp     [esi + RETADR - P_STACKBASE]  ; jump back to hwint00()
 
 ; After called kernel_main in main.c, the process table is ready
 ; pop all related regs and leave the stack as Figure 3.45
@@ -316,3 +319,14 @@ restart_reenter:
 		; when calling retd, the process will access the entry point: regs.eip == TestA
 		iretd
 
+sys_call:
+		call    save
+
+		sti
+
+		call    [sys_call_table + eax * 4]          ; see global.c, eax is set to 0 in syscall.asm, call sys_get_ticks()
+		mov     [esi + EAXREG - P_STACKBASE], eax   ; give the correct return value from sys_get_ticks(), after shift back to user process
+
+		cli
+
+		ret
