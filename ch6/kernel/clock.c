@@ -13,6 +13,7 @@
  */
 PUBLIC void clock_handler(int irq) {
     disp_str("#");
+    ticks++;
 
     if (k_reenter != 0) {
         disp_str("!");
@@ -23,4 +24,14 @@ PUBLIC void clock_handler(int irq) {
     if (p_proc_ready >= proc_table + NR_TASKS) {
         p_proc_ready = proc_table;
     }
+}
+
+/*
+ * use get_ticks() to count how many secs has been passed, more accurate
+ */
+PUBLIC void milli_delay(int milli_sec) {
+    int t = get_ticks();
+    
+    // count how many ticks, until it reaches milli_sec
+    while ((get_ticks() - t) * 1000 / HZ < milli_sec) {}
 }

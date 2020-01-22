@@ -48,9 +48,15 @@ PUBLIC int kernel_main() {
     }
     
     k_reenter = 0;
+    ticks = 0;
 
     // start the process
     p_proc_ready = proc_table;
+
+    // initialize 8253 PIT
+    out_byte(TIMER_MODE, RATE_GENERATOR);
+    out_byte(TIMER0, (u8) (TIMER_FREQ / HZ));         // write lower 8-bit
+    out_byte(TIMER0, (u8) ((TIMER_FREQ / HZ) >> 8));  // write higher 8-bit
 
     put_irq_handler(CLOCK_IRQ, clock_handler);    // register the clock int handler
     enable_irq(CLOCK_IRQ);                        // enable the clock int
@@ -71,9 +77,9 @@ void TestA() {
     while (1) {
         get_ticks();
         disp_str("A");
-        disp_int(i++);
+        disp_int(get_ticks());
         disp_str(".");
-        delay(1);
+        milli_delay(1000);
     }
 }
 

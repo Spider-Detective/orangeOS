@@ -4,6 +4,8 @@
 #define EXTERN  // define an empty value for EXTERN
 #endif
 
+EXTERN  int          ticks;
+
 EXTERN  int          disp_pos;
 EXTERN  u8           gdt_ptr[6];       /* 0~15:Limit, 16~47:Base */
 EXTERN  DESCRIPTOR   gdt[GDT_SIZE];

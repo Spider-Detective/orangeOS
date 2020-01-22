@@ -31,6 +31,14 @@
 #define INT_S_CTL      0xA0  /* I/O port for 2nd interrupt controller   <Slave>  */
 #define INT_S_CTLMASK  0xA1  /* Setting bits in this port disables ints <Slave>  */
 
+/* 8253/8254 PIT (Programmable Interval Timer), see Section 6.5.2.1 */
+#define TIMER0         0x40  /* I/O port for timer channel 0 */
+#define TIMER_MODE     0x43  /* I/O port for timer mode control */
+#define RATE_GENERATOR 0x34  /* 00-11-010-0: Counter 0 - LSB then MSB - mode 2 - bonary, see Figure 6.24 */
+#define TIMER_FREQ     1193182L  /* given clock frequency for timer in PC */
+#define HZ             100   /* target clock freq we want to set */
+                            
+
 /* Hardware interrupts */
 #define NR_IRQ          16
 #define CLOCK_IRQ       0
