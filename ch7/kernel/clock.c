@@ -36,3 +36,16 @@ PUBLIC void milli_delay(int milli_sec) {
     // count how many ticks, until it reaches milli_sec
     while ((get_ticks() - t) * 1000 / HZ < milli_sec) {}
 }
+
+PUBLIC void init_clock() {
+    // initialize 8253 PIT
+    out_byte(TIMER_MODE, RATE_GENERATOR);
+    /* write the value of counter to be (TIMER_FREQ / HZ)
+     * this makes the output freq to be 100 (HZ), and so every 10ms will have an interrupt
+     */
+    out_byte(TIMER0, (u8) (TIMER_FREQ / HZ));         // write lower 8-bit
+    out_byte(TIMER0, (u8) ((TIMER_FREQ / HZ) >> 8));  // write higher 8-bit
+
+    put_irq_handler(CLOCK_IRQ, clock_handler);    // register the clock int handler
+    enable_irq(CLOCK_IRQ); 
+}

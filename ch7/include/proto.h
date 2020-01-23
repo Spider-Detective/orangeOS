@@ -30,6 +30,10 @@ PUBLIC void    spurious_irq(int irq);
 /* clock.c */
 PUBLIC void    clock_handler(int irq);
 PUBLIC void    milli_delay(int milli_sec);
+PUBLIC void    init_clock();
+
+/* keyboard.c */
+PUBLIC void    init_keyboard();
 
 /* proc.c */
 PUBLIC int     sys_get_ticks();

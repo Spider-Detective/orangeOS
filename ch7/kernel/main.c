@@ -57,16 +57,9 @@ PUBLIC int kernel_main() {
     // start the process
     p_proc_ready = proc_table;
 
-    // initialize 8253 PIT
-    out_byte(TIMER_MODE, RATE_GENERATOR);
-    /* write the value of counter to be (TIMER_FREQ / HZ)
-     * this makes the output freq to be 100 (HZ), and so every 10ms will have an interrupt
-     */
-    out_byte(TIMER0, (u8) (TIMER_FREQ / HZ));         // write lower 8-bit
-    out_byte(TIMER0, (u8) ((TIMER_FREQ / HZ) >> 8));  // write higher 8-bit
+    init_clock();                       // enable the clock int
+    init_keyboard();
 
-    put_irq_handler(CLOCK_IRQ, clock_handler);    // register the clock int handler
-    enable_irq(CLOCK_IRQ);                        // enable the clock int
     restart();
 
     while (1) {}
@@ -82,7 +75,7 @@ PUBLIC int kernel_main() {
 void TestA() {
     int i = 0;
     while (1) {
-        disp_str("A.");
+        // disp_str("A.");
         milli_delay(10);   // now each delay has 1 tick
     }
 }
@@ -91,7 +84,7 @@ void TestA() {
 void TestB() {
     int i = 0x1000;
     while(1) {
-        disp_str("B.");
+        // disp_str("B.");
         milli_delay(10);
     }
 }
@@ -99,7 +92,7 @@ void TestB() {
 void TestC() {
     int i = 0x2000;
     while(1) {
-        disp_str("C.");
+        // disp_str("C.");
         milli_delay(10);
     }
 }

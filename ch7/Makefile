@@ -25,7 +25,7 @@ ORANGESBOOT          = boot/boot.bin boot/loader.bin
 ORANGESKERNEL        = kernel.bin
 OBJS                 = kernel/kernel.o kernel/syscall.o kernel/start.o kernel/main.o kernel/proc.o\
                                kernel/i8259.o kernel/global.o kernel/protect.o kernel/clock.o\
-							   lib/klib.o lib/kliba.o lib/string.o
+							   kernel/keyboard.o lib/klib.o lib/kliba.o lib/string.o
 DASMOUTPUT           = kernel.bin.asm
 FLOPPY               = /mnt/floppy/
 IMG                  = a.img
@@ -98,6 +98,9 @@ kernel/proc.o : kernel/proc.c include/type.h include/const.h include/protect.h \
 	$(CC) $(CFLAGS) -o $@ $<
 
 kernel/clock.o: kernel/clock.c 
+	$(CC) $(CFLAGS) -o $@ $<
+
+kernel/keyboard.o: kernel/keyboard.c 
 	$(CC) $(CFLAGS) -o $@ $<
 
 lib/klib.o : lib/klib.c include/type.h include/const.h include/protect.h \
