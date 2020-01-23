@@ -15,3 +15,28 @@
 PUBLIC int sys_get_ticks() {
     return ticks;
 }
+
+/*
+ * Function for scheduling the processes
+ */
+PUBLIC void schedule() {
+    PROCESS* p;
+    int      greatest_ticks = 0;
+
+    while (!greatest_ticks) {
+        // switch to the process with largest ticks
+        for (p = proc_table; p < (proc_table + NR_TASKS); p++) {
+            if (greatest_ticks < p->ticks) {
+                greatest_ticks = p->ticks;
+                p_proc_ready = p;
+            }
+        }
+        // if all processes have 0 ticks, 
+        // assign the initial ticks to all processes and switch to the largest one
+        if (!greatest_ticks) {
+            for (p = proc_table; p < (proc_table + NR_TASKS); p++) {
+                p->ticks = p->priority;
+            }
+        }
+    }
+}

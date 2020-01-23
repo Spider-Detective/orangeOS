@@ -46,6 +46,10 @@ PUBLIC int kernel_main() {
         p_task++;
         selector_ldt += 1 << 3;
     }
+
+    proc_table[0].ticks = proc_table[0].priority = 15;
+    proc_table[1].ticks = proc_table[1].priority = 5;
+    proc_table[2].ticks = proc_table[2].priority = 3;
     
     k_reenter = 0;
     ticks = 0;
@@ -55,6 +59,9 @@ PUBLIC int kernel_main() {
 
     // initialize 8253 PIT
     out_byte(TIMER_MODE, RATE_GENERATOR);
+    /* write the value of counter to be (TIMER_FREQ / HZ)
+     * this makes the output freq to be 100 (HZ), and so every 10ms will have an interrupt
+     */
     out_byte(TIMER0, (u8) (TIMER_FREQ / HZ));         // write lower 8-bit
     out_byte(TIMER0, (u8) ((TIMER_FREQ / HZ) >> 8));  // write higher 8-bit
 
@@ -75,11 +82,8 @@ PUBLIC int kernel_main() {
 void TestA() {
     int i = 0;
     while (1) {
-        get_ticks();
-        disp_str("A");
-        disp_int(get_ticks());
-        disp_str(".");
-        milli_delay(1000);
+        disp_str("A.");
+        milli_delay(10);   // now each delay has 1 tick
     }
 }
 
@@ -87,19 +91,15 @@ void TestA() {
 void TestB() {
     int i = 0x1000;
     while(1) {
-        disp_str("B");
-        disp_int(i++);
-        disp_str(".");
-        delay(1);
+        disp_str("B.");
+        milli_delay(10);
     }
 }
 
 void TestC() {
     int i = 0x2000;
     while(1) {
-        disp_str("C");
-        disp_int(i++);
-        disp_str(".");
-        delay(1);
+        disp_str("C.");
+        milli_delay(10);
     }
 }

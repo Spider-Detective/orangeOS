@@ -33,6 +33,7 @@ PUBLIC void    milli_delay(int milli_sec);
 
 /* proc.c */
 PUBLIC int     sys_get_ticks();
+PUBLIC void    schedule();
 
 /* syscall.asm */
 PUBLIC void    sys_call();

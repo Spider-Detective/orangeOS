@@ -12,6 +12,18 @@
 #define TRUE    1
 #define FALSE   0
 
+/* COLOR DEFINITIONS 
+ * e.g. MAKECOLOR(BLACK | RED) | BRIGHT
+ */
+#define BLACK   0x0
+#define WHITE   0x7
+#define RED     0x4
+#define GREEN   0x2
+#define BLUE    0x1
+#define FLASH   0x80
+#define BRIGHT  0x08
+#define MAKE_COLOR(x, y) (x | y)    /* (background, foreground) */
+
 #define GDT_SIZE        128
 #define IDT_SIZE        256
 
