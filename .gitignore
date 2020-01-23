@@ -1,5 +1,5 @@
 **/*.swp
-**/bochsout.txt
+**/*.txt
 **/*.com
 **/*.bin
 **/*.o
