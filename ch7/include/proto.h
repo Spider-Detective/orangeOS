@@ -35,6 +35,9 @@ PUBLIC void    init_clock();
 /* keyboard.c */
 PUBLIC void    init_keyboard();
 
+/* tty.c */
+PUBLIC void    task_tty();
+
 /* proc.c */
 PUBLIC int     sys_get_ticks();
 PUBLIC void    schedule();

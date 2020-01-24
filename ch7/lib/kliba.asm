@@ -13,6 +13,8 @@ global  out_byte
 global  in_byte
 global  enable_irq
 global  disable_irq
+global  disable_int
+global  enable_int
 
 ;; show up a string, void disp_str(char * info);
 disp_str:
@@ -171,4 +173,14 @@ enable_8:
         and     al, ah
         out     INT_S_CTLMASK, al   ; clear the given irq bit on 8259
         popf
+        ret
+
+; void disable_int();
+disable_int:
+        cli
+        ret
+
+; void enable_int();
+enable_int:
+        sti
         ret
