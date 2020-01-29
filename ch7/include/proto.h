@@ -37,7 +37,7 @@ PUBLIC void    init_keyboard();
 
 /* tty.c */
 PUBLIC void    task_tty();
-PUBLIC void    in_process(u32 key);
+PUBLIC void    in_process(TTY* p_tty, u32 key);
 
 /* proc.c */
 PUBLIC int     sys_get_ticks();

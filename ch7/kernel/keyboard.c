@@ -1,10 +1,12 @@
 #include "type.h"
 #include "const.h"
 #include "protect.h"
-#include "proto.h"
 #include "string.h"
 #include "proc.h"
+#include "tty.h"
+#include "console.h"
 #include "global.h"
+#include "proto.h"
 #include "keyboard.h"
 #include "keymap.h"
 
@@ -44,13 +46,12 @@ PUBLIC void init_keyboard() {
     shift_l = shift_r = 0;
     alt_l = alt_r = 0;
     ctrl_l = ctrl_r = 0;
-    code_with_E0 = 0;
 
     put_irq_handler(KEYBOARD_IRQ, keyboard_handler);
     enable_irq(KEYBOARD_IRQ);
 }
 
-PUBLIC void keyboard_read() {
+PUBLIC void keyboard_read(TTY* p_tty) {
     u8     scan_code;
     int    make;
     u32    key = 0;      // use a 32-bit to store the key (code with flags)
@@ -128,27 +129,21 @@ PUBLIC void keyboard_read() {
             switch(key) {
                 case SHIFT_L:
                     shift_l = make;         // only true when being pressed (output make code, not break code)
-                    key = 0;
                     break;
                 case SHIFT_R:
                     shift_r = make;         
-                    key = 0;
                     break;
                 case CTRL_L:
                     ctrl_l = make;         
-                    key = 0;
                     break;
                 case CTRL_R:
                     ctrl_r = make;         
-                    key = 0;
                     break;
                 case ALT_L:
                     alt_l = make;         
-                    key = 0;
                     break;
                 case ALT_R:
                     alt_r = make;         
-                    key = 0;
                     break;
                 default:                    
                     break;
@@ -156,18 +151,18 @@ PUBLIC void keyboard_read() {
             if (make) {    // ignore break code
                 key |= shift_l ? FLAG_SHIFT_L   : 0;
                 key |= shift_r ? FLAG_SHIFT_R   : 0;
-                key |= shift_l ? FLAG_SHIFT_L   : 0;
-                key |= shift_r ? FLAG_SHIFT_R   : 0;
-                key |= shift_l ? FLAG_SHIFT_L   : 0;
-                key |= shift_r ? FLAG_SHIFT_R   : 0;
+                key |= ctrl_l  ? FLAG_CTRL_L    : 0;
+                key |= ctrl_r  ? FLAG_CTRL_R    : 0;
+                key |= alt_l   ? FLAG_ALT_L     : 0;
+                key |= alt_r   ? FLAG_ALT_R     : 0;
 
-                in_process(key);
+                in_process(p_tty, key);
             }
         }
     }
 }
 
-PUBLIC u8 get_byte_from_kbuf() {
+PRIVATE u8 get_byte_from_kbuf() {
     u8 scan_code;
 
     while (kb_in.count <= 0) {}         //sanity check, wait if no next byte

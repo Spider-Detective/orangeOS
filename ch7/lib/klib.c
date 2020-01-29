@@ -5,10 +5,12 @@
 #include "type.h"
 #include "const.h"
 #include "protect.h"
-#include "proto.h"
+#include "console.h"
+#include "tty.h"
 #include "string.h"
 #include "proc.h"
 #include "global.h"
+#include "proto.h"
 
 /*
  * Convert 32-bit int into string in hex

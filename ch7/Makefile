@@ -24,7 +24,7 @@ DASMFLAGS            = -u -o $(ENTRYPOINT) -e $(ENTRYOFFSET)
 ORANGESBOOT          = boot/boot.bin boot/loader.bin
 ORANGESKERNEL        = kernel.bin
 OBJS                 = kernel/kernel.o kernel/syscall.o kernel/start.o kernel/main.o kernel/proc.o\
-                               kernel/i8259.o kernel/global.o kernel/protect.o kernel/clock.o\
+                               kernel/i8259.o kernel/global.o kernel/protect.o kernel/clock.o kernel/console.o\
 							   kernel/keyboard.o kernel/tty.o lib/klib.o lib/kliba.o lib/string.o
 DASMOUTPUT           = kernel.bin.asm
 FLOPPY               = /mnt/floppy/
@@ -93,8 +93,7 @@ kernel/protect.o : kernel/protect.c include/type.h include/const.h include/prote
 				   include/proto.h include/proc.h include/global.h
 	$(CC) $(CFLAGS) -o $@ $<
 
-kernel/proc.o : kernel/proc.c include/type.h include/const.h include/protect.h \
-                   include/proto.h include/string.h include/proc.h include/global.h
+kernel/proc.o : kernel/proc.c 
 	$(CC) $(CFLAGS) -o $@ $<
 
 kernel/clock.o: kernel/clock.c 
@@ -104,6 +103,9 @@ kernel/keyboard.o: kernel/keyboard.c
 	$(CC) $(CFLAGS) -o $@ $<
 
 kernel/tty.o: kernel/tty.c 
+	$(CC) $(CFLAGS) -o $@ $<
+
+kernel/console.o: kernel/console.c 
 	$(CC) $(CFLAGS) -o $@ $<
 
 lib/klib.o : lib/klib.c include/type.h include/const.h include/protect.h \

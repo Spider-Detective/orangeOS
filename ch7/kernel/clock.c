@@ -1,10 +1,12 @@
 #include "type.h"
 #include "const.h"
 #include "protect.h"
-#include "proto.h"
 #include "string.h"
+#include "tty.h"
+#include "console.h"
 #include "proc.h"
 #include "global.h"
+#include "proto.h"
 
 /* clock handler function
  * This function is used in kernel's clock int handler (kernel.asm)

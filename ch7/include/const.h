@@ -37,6 +37,9 @@
 #define RPL_TASK        SA_RPL1
 #define RPL_USER        SA_RPL3
 
+/* TTY */
+#define NR_CONSOLES    3     /* consoles, 32kb video mem is enough for 3 80*25 consoles */
+
 /* 8259A interrupt controller ports */
 #define INT_M_CTL      0x20  /* I/O port for interrupt controller       <Master> */
 #define INT_M_CTLMASK  0x21  /* Setting bits in this port disables ints <Master> */
