@@ -38,8 +38,7 @@ PRIVATE void init_tty(TTY* p_tty) {
     p_tty->inbuf_count = 0;
     p_tty->p_inbuf_head = p_tty->p_inbuf_tail = p_tty->in_buf;
 
-    int nr_tty = p_tty - tty_table;
-    p_tty->p_console = console_table + nr_tty;
+    init_screen(p_tty);
 }
 
 PUBLIC void in_process(TTY* p_tty, u32 key) {

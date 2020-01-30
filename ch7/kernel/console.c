@@ -11,6 +11,29 @@
 
 PRIVATE void set_cursor(u32 position);
 
+PUBLIC void init_screen(TTY* p_tty) {
+    int nr_tty = p_tty - tty_table;
+    p_tty->p_console = console_table + nr_tty;
+
+    int v_mem_size = V_MEM_SIZE >> 1;   // size in unit of WORD
+
+    int con_v_mem_size                   = v_mem_size / NR_CONSOLES;
+    p_tty->p_console->original_addr      = nr_tty * con_v_mem_size;
+    p_tty->p_console->v_mem_limit        = con_v_mem_size;
+    p_tty->p_console->current_start_addr = p_tty->p_console->original_addr;
+    p_tty->p_console->cursor             = p_tty->p_console->original_addr; 
+
+    if (nr_tty == 0) {
+        p_tty->p_console->cursor = disp_pos / 2;
+        disp_pos = 0;
+    } else {
+        out_char(p_tty->p_console, nr_tty + '0');
+        out_char(p_tty->p_console, '#');
+    }
+
+    set_cursor(p_tty->p_console->cursor);
+}
+
 PUBLIC int is_current_console(CONSOLE* p_con) {
     return (p_con == &console_table[nr_current_console]);
 }
