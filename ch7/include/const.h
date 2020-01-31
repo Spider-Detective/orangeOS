@@ -56,6 +56,8 @@
 /* AT-type keyboard, 8042 ports, see Table 7.1 */
 #define KB_DATA        0x60   /* I/O port for kayboard data (read/write) */
 #define KB_CMD         0x64   /* I/O port for keyboard command (read status register/write input buffer) */
+#define LED_CODE       0xED   /* Command to write to LED lights of keyboard */
+#define KB_ACK         0xFA   /* ACK from Keyboard */
 
 /* VGA, see Table 7.4 and 7.5 */
 #define CRTC_ADDR_REG  0x3D4   /* Addr Register */
