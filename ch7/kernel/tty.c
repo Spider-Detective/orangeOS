@@ -24,7 +24,7 @@ PUBLIC void task_tty() {
     for (p_tty = TTY_FIRST; p_tty < TTY_END; p_tty++) {
         init_tty(p_tty);
     }
-    nr_current_console = 0;
+    select_console(0);
     while (1) {
         for (p_tty = TTY_FIRST; p_tty < TTY_END; p_tty++) {
             tty_do_read(p_tty);
@@ -59,18 +59,29 @@ PUBLIC void in_process(TTY* p_tty, u32 key) {
         switch(raw_code) {
             case UP:
                 if ((key & FLAG_SHIFT_L) || (key & FLAG_SHIFT_R)) {
-                    // scroll down the console from (0,0) to (0,15)
-                    disable_int();
-                    out_byte(CRTC_ADDR_REG, START_ADDR_H);   
-                    out_byte(CRTC_DATA_REG, ((80 * 15) >> 8) & 0xFF);   
-                    out_byte(CRTC_ADDR_REG, START_ADDR_L);
-                    out_byte(CRTC_DATA_REG, (80 * 15) & 0xFF);   
-                    enable_int(); 
+                    // scroll DOWN the console by one line
+                    scroll_screen(p_tty->p_console, SCR_DN);
                 }
                 break;
             case DOWN:
                 if ((key & FLAG_SHIFT_L) || (key & FLAG_SHIFT_R)) {
-
+                    scroll_screen(p_tty->p_console, SCR_UP);
+                }
+                break;
+            case F1:
+            case F2:
+            case F3:
+            case F4:
+            case F5:
+            case F6:
+            case F7:
+            case F8:
+            case F9:
+            case F10:
+            case F11:
+            case F12:
+                if ((key & FLAG_ALT_L) || (key & FLAG_ALT_R)) {
+                    select_console(raw_code - F1);
                 }
                 break;
             default:
