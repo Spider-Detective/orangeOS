@@ -46,8 +46,12 @@ typedef struct s_task {
     char    name[32];
 } TASK;
 
-/* Number of tasks */
-#define NR_TASKS       4
+/* Number of tasks and processes, 
+ * tasks: tty etc, run on ring1
+ * processes: for user, run on ring3
+ */
+#define NR_TASKS       1
+#define NR_PROCS       3
 
 /* stacks of tasks */
 #define STACK_SIZE_TTY         0x8000

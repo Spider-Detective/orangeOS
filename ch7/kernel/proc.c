@@ -27,7 +27,7 @@ PUBLIC void schedule() {
 
     while (!greatest_ticks) {
         // switch to the process with largest ticks
-        for (p = proc_table; p < (proc_table + NR_TASKS); p++) {
+        for (p = proc_table; p < (proc_table + NR_TASKS + NR_PROCS); p++) {
             if (greatest_ticks < p->ticks) {
                 greatest_ticks = p->ticks;
                 p_proc_ready = p;
@@ -36,7 +36,7 @@ PUBLIC void schedule() {
         // if all processes have 0 ticks, 
         // assign the initial ticks to all processes and switch to the largest one
         if (!greatest_ticks) {
-            for (p = proc_table; p < (proc_table + NR_TASKS); p++) {
+            for (p = proc_table; p < (proc_table + NR_TASKS + NR_PROCS); p++) {
                 p->ticks = p->priority;
             }
         }
