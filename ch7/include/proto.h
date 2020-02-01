@@ -43,10 +43,18 @@ PUBLIC void    in_process(TTY* p_tty, u32 key);
 PUBLIC void    out_char(CONSOLE* p_con, char ch);
 PUBLIC void    scroll_screen(CONSOLE* p_con, int direction);
 
+/* printf.c */
+PUBLIC int     printf(const char *fmt, ...);
+
+/* vsprintf.c */
+PUBLIC int     vsprintf(char* buf, const char* fmt, va_list arg);
+
 /* proc.c */
 PUBLIC int     sys_get_ticks();
 PUBLIC void    schedule();
+PUBLIC int     sys_write(char* buf, int len, PROCESS* p_proc);
 
 /* syscall.asm */
 PUBLIC void    sys_call();
 PUBLIC int     get_ticks();      /* user process call this function */
+PUBLIC void    write(char* buf, int len);

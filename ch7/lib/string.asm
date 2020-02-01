@@ -3,6 +3,7 @@
 global  memcpy
 global  memset
 global  strcpy
+global  strlen
 
 ; copy the memory, similar to memcpy in C
 ; In C, void *MemCpy(void* es:pDest, void* ds:pSrc, int iSize);
@@ -93,3 +94,20 @@ strcpy:
         pop     ebp
         ret
 ; end of strcpy
+
+; int strlen(char* p_str);
+strlen:
+        push    ebp
+        mov     ebp, esp
+
+        mov     eax, 0              ; start from 0 
+        mov     esi, [ebp + 8]      
+.1:
+        cmp     byte [esi], 0       ; check if current char is '\0'
+        jz      .2
+        inc     esi
+        inc     eax
+        jmp     .1
+.2:
+        pop     ebp
+        ret

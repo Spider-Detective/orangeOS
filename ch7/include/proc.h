@@ -37,6 +37,8 @@ typedef struct s_proc {
 
     u32 pid;                       // process id
     char p_name[16];               // name of the process
+
+    int nr_tty;
 } PROCESS;
 
 // data structure to store the initilization info of a task/process, to be put into process table

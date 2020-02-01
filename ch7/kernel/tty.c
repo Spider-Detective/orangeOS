@@ -120,3 +120,19 @@ PRIVATE void tty_do_write(TTY* p_tty) {
         out_char(p_tty->p_console, ch);
     }
 }
+
+// write the buf into console of tty
+PUBLIC void tty_write(TTY* p_tty, char* buf, int len) {
+    char* p = buf;
+    int i = len;
+
+    while (i) {
+        out_char(p_tty->p_console, *p++);
+        i--;
+    }
+}
+
+PUBLIC int sys_write(char* buf, int len, PROCESS* p_proc) {
+    tty_write(&tty_table[p_proc->nr_tty], buf, len);
+    return 0;
+}

@@ -321,12 +321,14 @@ restart_reenter:
 
 sys_call:
 		call    save
-
+		push    dword [p_proc_ready]
 		sti
 
+		push    ecx
+		push    ebx
 		call    [sys_call_table + eax * 4]          ; see global.c, eax is set to 0 in syscall.asm, call sys_get_ticks()
+		add     esp, 4 * 3
+
 		mov     [esi + EAXREG - P_STACKBASE], eax   ; give the correct return value from sys_get_ticks(), after shift back to user process
-
 		cli
-
 		ret
