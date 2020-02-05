@@ -29,7 +29,6 @@ PUBLIC void    spurious_irq(int irq);
 
 /* clock.c */
 PUBLIC void    clock_handler(int irq);
-PUBLIC void    milli_delay(int milli_sec);
 PUBLIC void    init_clock();
 
 /* keyboard.c */
@@ -51,8 +50,8 @@ PUBLIC int     vsprintf(char* buf, const char* fmt, va_list arg);
 
 /* proc.c */
 PUBLIC int     sys_get_ticks();
-PUBLIC void    schedule();
 PUBLIC int     sys_write(char* buf, int len, PROCESS* p_proc);
+PUBLIC int     sys_sendrec(int function, int src_dest, MESSAGE* m, struct proc* p);
 
 /* syscall.asm */
 PUBLIC void    sys_call();

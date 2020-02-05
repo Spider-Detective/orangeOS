@@ -34,9 +34,7 @@ StackTop:
 [section .text]
 
 global _start      ; start kernel, entry point of kernel
-
 global restart     ; function to trigger process A
-
 global sys_call    ; function to call system functions and features
 
 ; all exception types are listed in Table 3.8
@@ -278,9 +276,13 @@ save:
 		push    es
 		push    fs
 		push    gs
+
+		mov     esi, edx                      ; save edx because edx is used as a param of sys_call
 		mov     dx, ss
 		mov     ds, dx
 		mov     es, dx
+		mov     fs, dx
+		mov     edx, esi
 
 		mov     esi, esp                      ; save the esp (starting addr of process table)
 
@@ -321,13 +323,14 @@ restart_reenter:
 
 sys_call:
 		call    save
-		push    dword [p_proc_ready]
-		sti
 
+		sti
+		push    dword [p_proc_ready]
+		push    edx
 		push    ecx
 		push    ebx
 		call    [sys_call_table + eax * 4]          ; see global.c, eax is set to 0 in syscall.asm, call sys_get_ticks()
-		add     esp, 4 * 3
+		add     esp, 4 * 4
 
 		mov     [esi + EAXREG - P_STACKBASE], eax   ; give the correct return value from sys_get_ticks(), after shift back to user process
 		cli

@@ -79,7 +79,7 @@ PUBLIC void in_process(TTY* p_tty, u32 key) {
             case F10:
             case F11:
             case F12:
-                if ((key & FLAG_ALT_L) || (key & FLAG_ALT_R)) {
+                if ((key & FLAG_CTRL_L) || (key & FLAG_CTRL_R)) {
                     select_console(raw_code - F1);
                 }
                 break;
@@ -132,7 +132,11 @@ PUBLIC void tty_write(TTY* p_tty, char* buf, int len) {
     }
 }
 
-PUBLIC int sys_write(char* buf, int len, PROCESS* p_proc) {
-    tty_write(&tty_table[p_proc->nr_tty], buf, len);
+PUBLIC int sys_printx(int _unused1, int _unused2, char* s, struct proc* p_proc) {
+    const char* p;
+    char ch;
+
+    char reenter_err[] = "? k_reenter is incorrect for unknown reason";
+    reenter_err[0] = MAG_CH_PANIC;
     return 0;
 }

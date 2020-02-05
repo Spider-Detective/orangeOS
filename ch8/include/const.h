@@ -2,6 +2,14 @@
 #ifndef _ORANGES_CONST_H_
 #define _ORANGES_CONST_H_
 
+#define ASSERT
+#ifdef  ASSERT
+void assertion_failure(char* exp, char* file, char* base_file, int line);
+#define assert(exp)  if (exp) ; \
+                else assertion_failure(#exp, __FILE__, __BASE_FILE__, __LINE__)
+#else
+#define assert(exp)
+#endif
 /* EXTERN is defined as "extern" except in global.c, see global.h */
 #define EXTERN extern
 
@@ -82,6 +90,34 @@
 #define PRINTER_IRQ     7
 #define AT_WINI_IRQ     14     /* AT winchester */
 
-#define NR_SYS_CALL     2
+/* tasks */
+/* TASK_* has the same definition as in global.c */
+#define INVALID_DRIVER	-20
+#define INTERRUPT	    -10
+#define TASK_TTY	    0
+#define TASK_SYS	    1
+/* #define TASK_WINCH	2 */
+/* #define TASK_FS	3 */
+/* #define TASK_MM	4 */
+#define ANY		        (NR_TASKS + NR_PROCS + 10)
+#define NO_TASK		    (NR_TASKS + NR_PROCS + 20)
+
+#define NR_SYS_CALL     3
+
+/* ipc consts */
+#define SEND            1
+#define RECEIVE         2
+#define BOTH            3   /* (SEND | RECEIVE) */
+
+/* 'magic chars' used by 'printx' */
+#define MAG_CH_PANIC    '\002'
+#define MAG_CH_ASSERT   '\003'
+
+enum msgtype {
+    HARD_INT = 1,
+    GET_TICKS,
+};
+
+#define RETVAL          u.m3.m3i1
 
 #endif /* _ORANGES_CONST_H_ */
