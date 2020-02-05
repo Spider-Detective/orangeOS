@@ -23,10 +23,12 @@ DASMFLAGS            = -u -o $(ENTRYPOINT) -e $(ENTRYOFFSET)
 
 ORANGESBOOT          = boot/boot.bin boot/loader.bin
 ORANGESKERNEL        = kernel.bin
-OBJS                 = kernel/kernel.o kernel/syscall.o kernel/start.o kernel/main.o kernel/proc.o\
-                               kernel/i8259.o kernel/global.o kernel/protect.o kernel/clock.o kernel/console.o\
-							   kernel/keyboard.o kernel/tty.o lib/klib.o lib/kliba.o lib/string.o\
-							   kernel/printf.o kernel/vsprintf.o
+OBJS                 = kernel/kernel.o kernel/syscall.o kernel/start.o kernel/main.o\
+					   kernel/clock.o kernel/keyboard.o kernel/tty.o kernel/console.o\
+					   kernel/i8259.o kernel/global.o kernel/protect.o kernel/proc.o\
+                       kernel/systask.o kernel/printf.o kernel/vsprintf.o\
+					   lib/klib.o lib/kliba.o lib/string.o lib/misc.o
+							   
 DASMOUTPUT           = kernel.bin.asm
 FLOPPY               = /mnt/floppy/
 IMG                  = a.img
@@ -115,8 +117,14 @@ kernel/printf.o: kernel/printf.c
 kernel/vsprintf.o: kernel/vsprintf.c 
 	$(CC) $(CFLAGS) -o $@ $<
 
+kernel/systask.o: kernel/systask.c 
+	$(CC) $(CFLAGS) -o $@ $<
+
 lib/klib.o : lib/klib.c include/type.h include/const.h include/protect.h \
 				   include/proto.h include/proc.h include/string.h include/global.h
+	$(CC) $(CFLAGS) -o $@ $<
+
+lib/misc.o : lib/misc.c
 	$(CC) $(CFLAGS) -o $@ $<
 
 lib/kliba.o : lib/kliba.asm

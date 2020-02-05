@@ -17,6 +17,8 @@ void assertion_failure(char* exp, char* file, char* base_file, int line);
 #define PUBLIC
 #define PRIVATE static
 
+#define STR_DEFAULT_LEN 1024
+
 #define TRUE    1
 #define FALSE   0
 

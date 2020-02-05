@@ -5,28 +5,28 @@
 
 // descriptor for data/system seg, 8 bytes
 // refer to pm.inc
-typedef struct s_descriptor {
+struct descriptor {
     u16    limit_low;
     u16    base_low;
     u8     base_mid;
     u8     attr1;
     u8     limit_high_attr2;
     u8     base_high
-}DESCRIPTOR;
+};
 
 // gate descriptor, see Code 3.40
-typedef struct s_gate {
+struct gate {
     u16    offset_low;
     u16    selector;
     u8     dcount;
     u8     attr;
     u16    offset_high;
-}GATE;
+};
 
 /*
  * es0: we need to set esp0 to the stack in current process table before ring1 -> ring0
  */
-typedef struct s_tss {
+struct tss {
     u32    backlink;
     u32    esp0;         // stack pointer to use when interrupt
     u32    ss0;
@@ -53,7 +53,7 @@ typedef struct s_tss {
     u32    ldt;
     u16    trap;
     u16    iobase
-} TSS;
+} ;
 
 /* GDT */
 /* Descriptor indexes and selectors, set in loader.asm */
@@ -76,17 +76,9 @@ typedef struct s_tss {
 #define SELECTOR_KERNEL_GS  SELECTOR_VIDEO
 
 #define LDT_SIZE            2
+#define INDEX_LDT_C         0
+#define INDEX_LDT_RW        1
 
-/* Selector Attribute (SA) */
-#define SA_RPL_MASK     0xFFFC
-#define SA_RPL0         0
-#define SA_RPL1         1
-#define SA_RPL2         2
-#define SA_RPL3         3
-
-#define SA_TI_MASK      0xFFFB
-#define SA_TIG          0
-#define SA_TIL          4
 
 /* Descriptor Attr */
 #define	DA_32			0x4000	/* 32-bit seg				*/
@@ -110,6 +102,17 @@ typedef struct s_tss {
 #define	DA_386CGate		0x8C	
 #define	DA_386IGate		0x8E	
 #define	DA_386TGate		0x8F	
+
+/* Selector Attribute (SA) */
+#define SA_RPL_MASK     0xFFFC
+#define SA_RPL0         0
+#define SA_RPL1         1
+#define SA_RPL2         2
+#define SA_RPL3         3
+
+#define SA_TI_MASK      0xFFFB
+#define SA_TIG          0
+#define SA_TIL          4
 
 /* Interrupt vectors */
 #define	INT_VECTOR_DIVIDE		    0x0

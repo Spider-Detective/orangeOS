@@ -28,10 +28,10 @@ PRIVATE int            caps_lock;
 PRIVATE int            num_lock;
 PRIVATE int            scroll_lock;
 
-PRIVATE u8 get_byte_from_kbuf();
-PRIVATE void set_leds();
-PRIVATE void kb_wait();
-PRIVATE void kb_ack();
+PRIVATE u8             get_byte_from_kbuf();
+PRIVATE void           set_leds();
+PRIVATE void           kb_wait();
+PRIVATE void           kb_ack();
 
 PUBLIC void keyboard_handler(int irq) {
     u8 scan_code = in_byte(KB_DATA);      // see spec for 8042 and 8048, Table 7.1
@@ -50,6 +50,7 @@ PUBLIC void init_keyboard() {
     kb_in.count = 0;
     kb_in.p_head = kb_in.p_tail = kb_in.buf;
 
+    // TODO:
     shift_l = shift_r = 0;
     alt_l = alt_r = 0;
     ctrl_l = ctrl_r = 0;

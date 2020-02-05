@@ -2,10 +2,10 @@
 #include "type.h"
 #include "const.h"
 #include "protect.h"
-#include "console.h"
-#include "tty.h"
 #include "string.h"
 #include "proc.h"
+#include "tty.h"
+#include "console.h"
 #include "global.h"
 #include "keyboard.h"
 #include "proto.h"
@@ -19,6 +19,7 @@ PUBLIC void spin(char* func_name) {
  * Called by assert() in const.h, print out the position (line and file) of error
  */
 PUBLIC void assertion_failure(char* exp, char* file, char* base_file, int line) {
+    // printl macro is defined in proto.h
     printl("%c  assert(%s) failed: file: %s, base_file: %s, ln%d",
             MAG_CH_ASSERT,
             exp, file, base_file, line);

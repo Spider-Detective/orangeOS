@@ -1,6 +1,15 @@
 #include "type.h"
 #include "const.h"
+#include "protect.h"
 #include "string.h"
+#include "proc.h"
+#include "tty.h"
+#include "console.h"
+#include "global.h"
+#include "keyboard.h"
+#include "proto.h"
+
+// TODO
 
 int vsprintf(char* buf, const char* fmt, va_list args) {
     char* p;

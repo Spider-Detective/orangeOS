@@ -8,12 +8,13 @@
 #include "tty.h"
 #include "console.h"
 #include "proc.h"
+#include "string.h"
 #include "global.h"
 #include "proto.h"
 
 PRIVATE void init_idt_desc(unsigned char vector, u8 desc_type,
                             int_handler handler, unsigned char privilege);
-PRIVATE void init_descriptor(DESCRIPTOR* p_desc, u32 base, u32 limit, u16 attribute);
+PRIVATE void init_descriptor(struct descriptor* p_desc, u32 base, u32 limit, u16 attribute);
 
 // import int handler functions from kernel.asm
 // For exceptions:
@@ -165,12 +166,12 @@ PUBLIC void init_prot() {
 
 	// fill LDT descriptor into GDT for all processes
 	int i;
-	PROCESS* p_proc = proc_table;
+	struct proc* p_proc = proc_table;
 	u16 selector_ldt = INDEX_LDT_FIRST << 3;
 	for (i = 0; i < NR_TASKS + NR_PROCS; i++) {
 		init_descriptor(&gdt[selector_ldt >> 3],
 						vir2phys(seg2phys(SELECTOR_KERNEL_DS), proc_table[i].ldts),
-						LDT_SIZE * sizeof(DESCRIPTOR) - 1,
+						LDT_SIZE * sizeof(struct descriptor) - 1,
 						DA_LDT);
 		p_proc++;
 		selector_ldt += 1 << 3;
@@ -184,8 +185,8 @@ PUBLIC void init_prot() {
 PRIVATE void init_idt_desc(unsigned char vector, u8 desc_type,
                             int_handler handler, unsigned char privilege) {
     // see Code 3.36 for initialzing Gate
-    GATE* p_gate = &idt[vector];
-    u32   base   = (u32) handler;
+    struct gate* p_gate   = &idt[vector];
+    u32   base            = (u32) handler;
     p_gate->offset_low    = base & 0xFFFF;
     p_gate->selector      = SELECTOR_KERNEL_CS;
     p_gate->dcount        = 0;
@@ -196,7 +197,7 @@ PRIVATE void init_idt_desc(unsigned char vector, u8 desc_type,
 /*
  * Initialize seg descriptor
  */
-PRIVATE void init_descriptor(DESCRIPTOR* p_desc, u32 base, u32 limit, u16 attribute) {
+PRIVATE void init_descriptor(struct descriptor* p_desc, u32 base, u32 limit, u16 attribute) {
 	p_desc -> limit_low        = limit & 0x0FFFF;
 	p_desc -> base_low         = base & 0x0FFFF;
 	p_desc -> base_mid         = (base >> 16) & 0x0FF;
@@ -209,7 +210,7 @@ PRIVATE void init_descriptor(DESCRIPTOR* p_desc, u32 base, u32 limit, u16 attrib
  * Convert given segment to physical address using the base in gdt
  */
 PUBLIC u32 seg2phys(u16 seg) {
-	DESCRIPTOR* p_dest = &gdt[seg >> 3];   // each selector has length 0x8
+	struct descriptor* p_dest = &gdt[seg >> 3];   // each selector has length 0x8
 	return (p_dest -> base_high << 24 | p_dest -> base_mid << 16 | p_dest -> base_low);
 }
 

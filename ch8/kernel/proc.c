@@ -7,37 +7,43 @@
 #include "type.h"
 #include "const.h"
 #include "protect.h"
-#include "string.h"
 #include "tty.h"
 #include "console.h"
+#include "string.h"
 #include "proc.h"
 #include "global.h"
 #include "proto.h"
 
-PUBLIC int sys_get_ticks() {
-    return ticks;
-}
+PRIVATE void block(struct proc* p);
+PRIVATE void unblock(struct proc* p);
+PRIVATE int msg_send(struct proc* current, int dest, MESSAGE* m);
+PRIVATE int msg_receive(struct proc* current, int src, MESSAGE* m);
+PRIVATE int deadlock(int src, int dest);
 
 /*
  * Function for scheduling the processes
  */
 PUBLIC void schedule() {
-    PROCESS* p;
-    int      greatest_ticks = 0;
+    struct proc* p;
+    int          greatest_ticks = 0;
 
     while (!greatest_ticks) {
         // switch to the process with largest ticks
-        for (p = proc_table; p < (proc_table + NR_TASKS + NR_PROCS); p++) {
-            if (greatest_ticks < p->ticks) {
-                greatest_ticks = p->ticks;
-                p_proc_ready = p;
+        for (p = &LAST_PROC; p <= &LAST_PROC; p++) {
+            if (p->p_flags == 0) {
+                if (greatest_ticks < p->ticks) {
+                    greatest_ticks = p->ticks;
+                    p_proc_ready = p;
+                }
             }
         }
         // if all processes have 0 ticks, 
         // assign the initial ticks to all processes and switch to the largest one
         if (!greatest_ticks) {
-            for (p = proc_table; p < (proc_table + NR_TASKS + NR_PROCS); p++) {
-                p->ticks = p->priority;
+            for (p = &LAST_PROC; p <= &LAST_PROC; p++) {
+                if (p->p_flags == 0) {
+                    p->ticks = p->priority;
+                }
             }
         }
     }
@@ -79,5 +85,25 @@ PUBLIC int sys_sendrec(int function, int src_dest, MESSAGE* m, struct proc* p) {
               "%d (SEND:%d, RECEIVE:%d).", function, SEND, RECEIVE);
     }
 
+    return 0;
+}
+
+PRIVATE void block(struct proc* p) {
+
+}
+
+PRIVATE void unblock(struct proc* p) {
+
+}
+
+PRIVATE int msg_send(struct proc* current, int dest, MESSAGE* m) {
+    return 0;
+}
+
+PRIVATE int msg_receive(struct proc* current, int src, MESSAGE* m) {
+    return 0;
+}
+
+PRIVATE int deadlock(int src, int dest) {
     return 0;
 }

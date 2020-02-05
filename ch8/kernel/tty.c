@@ -138,5 +138,6 @@ PUBLIC int sys_printx(int _unused1, int _unused2, char* s, struct proc* p_proc) 
 
     char reenter_err[] = "? k_reenter is incorrect for unknown reason";
     reenter_err[0] = MAG_CH_PANIC;
+    // TODO
     return 0;
 }

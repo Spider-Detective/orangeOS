@@ -4,7 +4,7 @@
  */
 
 // regs on stack
-typedef struct s_stackframe {
+struct stackframe {
     u32    gs;
     u32    fs;
     u32    es;
@@ -23,14 +23,14 @@ typedef struct s_stackframe {
     u32    eflags;
     u32    esp;
     u32    ss;
-} STACK_FRAME;
+};
 
 // process table
-typedef struct s_proc {
-    STACK_FRAME regs;              // regs for the process saved in stack
+struct proc {
+    struct stackframe regs;              // regs for the process saved in stack
 
     u16 ldt_sel;                   // gdt selector giving ldt base and limit  
-    DESCRIPTOR ldts[LDT_SIZE];     // local descriptors for code and data
+    struct descriptor ldts[LDT_SIZE];     // local descriptors for code and data
 
     int ticks;                     // remained ticks for exe
     int priority;                  // initial ticks of the process
@@ -38,26 +38,44 @@ typedef struct s_proc {
     u32 pid;                       // process id
     char p_name[16];               // name of the process
 
+    int p_flags;
+    MESSAGE* p_msg;
+    int p_recvfrom;
+    int p_sendto;
+
+    int has_int_msg;
+    struct proc* q_sending;
+    struct proc* next_sending;
+
     int nr_tty;
-} PROCESS;
+};
 
 // data structure to store the initilization info of a task/process, to be put into process table
-typedef struct s_task {
+struct task {
     task_f  initial_eip;
     int     stacksize;
     char    name[32];
-} TASK;
+};
+
+#define proc2pid(x) (x - proc_table)
 
 /* Number of tasks and processes, 
  * tasks: tty etc, run on ring1
  * processes: for user, run on ring3
  */
-#define NR_TASKS       1
+#define NR_TASKS       2
 #define NR_PROCS       3
+#define FIRST_PROC     proc_table[0]
+#define LAST_PROC      proc_table[NR_TASKS + NR_PROCS - 1]
 
 /* stacks of tasks */
 #define STACK_SIZE_TTY         0x8000
+#define STACK_SIZE_SYS         0x8000
 #define STACK_SIZE_TESTA       0x8000
 #define STACK_SIZE_TESTB       0x8000
 #define STACK_SIZE_TESTC       0x8000
-#define STACK_SIZE_TOTAL       (STACK_SIZE_TTY + STACK_SIZE_TESTA + STACK_SIZE_TESTB + STACK_SIZE_TESTC)
+#define STACK_SIZE_TOTAL       (STACK_SIZE_TTY + \
+                                STACK_SIZE_SYS + \
+                                STACK_SIZE_TESTA + \
+                                STACK_SIZE_TESTB + \
+                                STACK_SIZE_TESTC)

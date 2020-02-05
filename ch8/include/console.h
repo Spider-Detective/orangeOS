@@ -15,10 +15,12 @@ typedef struct s_console {
 
 /* screen constants */
 #define SCR_UP      1      /* scroll up, show content before */
-#define SCR_DN   -1      /* scroll down, show content after */
+#define SCR_DN      -1      /* scroll down, show content after */
 #define SCREEN_SIZE          (80 * 25)
 #define SCREEN_WIDTH         80
 
-#define DEFAULT_CHAR_COLOR      0x07    // black back, red fore
+#define DEFAULT_CHAR_COLOR      MAKE_COLOR(BLACK, WHITE)  /* defined in const.h */
+#define GRAY_CHAR               (MAKE_COLOR(BLACK, BLACK) | BRIGHT)
+#define RED_CHAR                (MAKE_COLOR(BLUE, RED) | BRIGHT)
 
 #endif /* _ORANGES_CONSOLE_H_ */
