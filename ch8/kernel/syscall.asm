@@ -22,16 +22,16 @@ bits 32
 ;         int     INT_VECTOR_SYS_CALL
 ;         ret
 
+printx:
+        mov     eax, _NR_printx
+        mov     ebx, [esp + 4]          
+        int     INT_VECTOR_SYS_CALL
+        ret
+
 sendrec:
         mov     eax, _NR_sendrec
         mov     ebx, [esp + 4]          ; function
         mov     ecx, [esp + 8]          ; src_dest
         mov     edx, [esp + 12]         ; p_msg
-        int     INT_VECTOR_SYS_CALL
-        ret
-
-printx:
-        mov     eax, _NR_printx
-        mov     ebx, [esp + 4]          
         int     INT_VECTOR_SYS_CALL
         ret

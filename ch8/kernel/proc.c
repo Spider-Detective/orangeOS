@@ -88,6 +88,36 @@ PUBLIC int sys_sendrec(int function, int src_dest, MESSAGE* m, struct proc* p) {
     return 0;
 }
 
+PUBLIC int send_recv(int function, int src_dest, MESSAGE* msg) {
+    return 0;
+}
+
+// Ring 0: calculate the linear address of a certain seg of a given process
+//         by using the descriptor of process
+PUBLIC int ldt_seg_linear(struct proc* p, int idx) {
+    struct descriptor* d = &p->ldts[idx];
+    return d->base_high << 24 | d->base_mid << 16 | d->base_low;
+}
+
+// Ring 0: convert virtual/linear address to physical address
+PUBLIC void* va2la(int pid, void* va) {
+    struct proc* p = &proc_table[pid];
+
+    u32 seg_base = ldt_seg_linear(p, INDEX_LDT_RW);
+    u32 la = seg_base + (u32)va;
+
+    if (pid < NR_TASKS + NR_PROCS) {
+        assert(la == (u32)va);
+    }
+
+    return (void*)la;
+}
+
+// clear the msg by filling all 0
+PUBLIC void reset_msg(MESSAGE* p) {
+    memset(p, 0, sizeof(MESSAGE));
+}
+
 PRIVATE void block(struct proc* p) {
 
 }
@@ -106,4 +136,12 @@ PRIVATE int msg_receive(struct proc* current, int src, MESSAGE* m) {
 
 PRIVATE int deadlock(int src, int dest) {
     return 0;
+}
+
+PUBLIC void dump_proc(struct proc* p) {
+
+}
+
+PUBLIC void dump_msg(const char* title, MESSAGE* m) {
+
 }

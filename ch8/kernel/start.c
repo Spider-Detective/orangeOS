@@ -9,8 +9,7 @@
 #include "proto.h"
 
 PUBLIC void cstart() {
-    disp_str("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"
-             "-----\"cstart\" begins-----\n");
+    disp_str("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n-----\"cstart\" begins-----\n");
 
     // copy the GDT in LOADER into the new gdt
     memcpy(&gdt,

@@ -21,6 +21,9 @@ PRIVATE void put_key(TTY* p_tty, u32 key);
 PUBLIC void task_tty() {
     TTY*    p_tty;
 
+    // panic("in TTY");
+    // assert(0);
+
     init_keyboard();
     for (p_tty = TTY_FIRST; p_tty < TTY_END; p_tty++) {
         init_tty(p_tty);
@@ -81,6 +84,12 @@ PUBLIC void in_process(TTY* p_tty, u32 key) {
             case F12:
                 if ((key & FLAG_CTRL_L) || (key & FLAG_CTRL_R)) {
                     select_console(raw_code - F1);
+                } else {
+                    if (raw_code == F12) {
+                        disable_int();
+                        dump_proc(proc_table + 4);
+                        for (;;);
+                    }
                 }
                 break;
             default:
@@ -138,6 +147,55 @@ PUBLIC int sys_printx(int _unused1, int _unused2, char* s, struct proc* p_proc) 
 
     char reenter_err[] = "? k_reenter is incorrect for unknown reason";
     reenter_err[0] = MAG_CH_PANIC;
-    // TODO
+    /*
+     * printx() can be called in Ring 0 or Ring 1-3
+     * When it is called in Ring 0, printx() generates a interrupt, 
+     *  thus k_reenter will be increased, so k_reenter > 0
+     * When it is called in Ring 1-3, k_reenter == 0, and we need to do
+     *  linear-physical address mapping
+     */
+    if (k_reenter == 0) {          // printx() called in Ring 1-3
+        p = va2la(proc2pid(p_proc), s);
+    } else if (k_reenter > 0) {
+        p = s;
+    } else {
+        p = reenter_err;
+    }
+
+    // If panic, or task's assert failure, hlt the whole system
+    if ((*p == MAG_CH_PANIC) ||
+        (*p == MAG_CH_ASSERT && p_proc_ready < &proc_table[NR_TASKS])) {
+        disable_int();
+        char* v = (char*)V_MEM_BASE;     // directly write into video mem
+        const char* q = p + 1;           // skip the magic char
+
+        // write to whole screen, 
+        while (v < (char*)(V_MEM_BASE + V_MEM_SIZE)) {
+            *v++ = *q++;
+            *v++ = RED_CHAR;
+            // if q reaches the end, turn the existing char on screen to be gray
+            // in 16 lines, then rollback q to the beginning of p
+            if (!*q) {  
+                while (((int)v - V_MEM_BASE) % (SCREEN_WIDTH * 16)) {
+                    v++;
+                    *v++ = GRAY_CHAR;
+                }
+                q = p + 1;
+            }
+        }
+
+        // The __volatile__ modifier on an __asm__ block forces the 
+        // compiler's optimizer to execute the code as-is
+        __asm__ __volatile__("hlt");
+    }
+
+    // otherwise simply print the string s (or p)
+    while ((ch = *p++) != 0) {
+        if (ch == MAG_CH_PANIC || ch == MAG_CH_ASSERT) {
+            continue;      // skip the magic char
+        }
+        out_char(tty_table[p_proc->nr_tty].p_console, ch);
+    }
+
     return 0;
 }

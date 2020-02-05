@@ -25,7 +25,7 @@ int printf(const char *fmt, ...) {
     va_list arg = (va_list)((char *)(&fmt) + 4);    // 4 is the size of fmt on stack
     i = vsprintf(buf, fmt, arg);
     buf[i] = 0;
-    printx(buf);
+    printx(buf);     // system call, calls printx in syscall.asm
 
     return i;
 }

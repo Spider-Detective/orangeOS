@@ -128,6 +128,7 @@ void TestB() {
 }
 
 void TestC() {
+    // assert(0);
     while(1) {
         printf("C");
         milli_delay(200);
@@ -145,5 +146,5 @@ PUBLIC void panic(const char *fmt, ...) {
 
     printl("%c !!panic!! %s", MAG_CH_PANIC, buf);
 
-    __asm__ __volatile__("ud2");
+    __asm__ __volatile__("ud2");     // Raise invalid opcode exception
 }
