@@ -114,7 +114,7 @@ PUBLIC int get_ticks() {
  */
 void TestA() {
     while (1) {
-        printf("<Ticks:%x>", get_ticks());
+        printf("<Ticks:%d>", get_ticks());
         milli_delay(200);   // now each delay has 1 tick
     }
 }
