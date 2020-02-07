@@ -41,7 +41,7 @@ PUBLIC int kernel_main() {
             prio       = 5;
         }
 
-        strcpy(p_proc->p_name, p_task->name);       // process name
+        strcpy(p_proc->name, p_task->name);       // process name
         p_proc->pid = i;                            // process id
 
         p_proc->ldt_sel = selector_ldt;

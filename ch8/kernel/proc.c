@@ -118,23 +118,135 @@ PUBLIC void reset_msg(MESSAGE* p) {
     memset(p, 0, sizeof(MESSAGE));
 }
 
+/* 
+ * Only called when p_flags is set to non-zero
+ * block the current process p by scheduling the next process
+ * p_flags is not changed in this function
+ */
 PRIVATE void block(struct proc* p) {
-
+    assert(p->p_flags);
+    schedule();
 }
 
+// dummy function, the unblock logic is handled in schedule()
 PRIVATE void unblock(struct proc* p) {
-
+    assert(p->p_flags == 0);
 }
 
+/*
+ * Send a message m to dest. See page 320.
+ * First check deadlock, 
+ * Then check if dest is RECEIVING, if yes, send m to dest and unblock it
+ * Otherwise block current and append current into the linked list of dest's sending queue
+ */
 PRIVATE int msg_send(struct proc* current, int dest, MESSAGE* m) {
+    struct proc* sender = current;
+    struct proc* p_dest = proc_table + dest;
+
+    assert(proc2pid(sender) != dest);
+    
+    // check deadlock
+    if (deadlock(proc2pid(sender), dest)) {
+        panic(">>DEADLOCK<< %s->%s", sender->name, p_dest->name);
+    }
+
+    // if dest is receiving
+    if ((p_dest->p_flags & RECEIVING) &&
+        (p_dest->p_recvfrom == proc2pid(sender) || p_dest->p_recvfrom == ANY)) {
+        assert(p_dest->p_msg);
+        assert(m);
+
+        // copy the msg to dest, and recover the state of sender
+        phys_copy(va2la(dest, p_dest->p_msg),
+                  va2la(proc2pid(sender), m),
+                  sizeof(MESSAGE));
+        p_dest->p_msg = 0;
+        p_dest->p_flags &= ~RECEIVING;
+        p_dest->p_recvfrom = NO_TASK;
+        unblock(p_dest);
+
+        assert(p_dest->p_flags == 0);
+        assert(p_dest->p_msg == 0);
+        assert(p_dest->p_recvfrom == NO_TASK);
+        assert(p_dest->p_sendto == NO_TASK);
+        assert(sender->p_flags == 0);
+        assert(sender->p_msg == 0);
+        assert(sender->p_recvfrom == NO_TASK);
+        assert(sender->p_sendto == NO_TASK);
+    } else {     // dest is not receiving, block and append the sender
+        sender->p_flags |= SENDING;
+        assert(sender->p_flags == SENDING);
+        sender->p_sendto = dest;
+        sender->p_msg = m;
+
+        // go to the end of the queue and append to it
+        struct proc* p;
+        if (p_dest->q_sending) {   // q_sending is the head
+            p = p_dest->q_sending;
+            while (p->next_sending) {
+                p = p->next_sending;
+            }
+            p->next_sending = sender;
+        } else {
+            p_dest->q_sending = sender;
+        }
+        sender->next_sending = 0;
+
+        block(sender);
+
+        assert(sender->p_flags == SENDING);
+        assert(sender->p_msg != 0);
+        assert(sender->p_recvfrom == NO_TASK);
+        assert(sender->p_sendto == dest);
+    }
+
     return 0;
 }
 
+/*
+ * Receive a msg m from src. See Page 321.
+ * If src is blocked from sending, copy the message and unblock it
+ * Otherwise block current
+ */
 PRIVATE int msg_receive(struct proc* current, int src, MESSAGE* m) {
+    struct proc* p_who_wanna_recv = current;
+
+    struct proc* p_from = 0;
+    struct proc* prev = 0;
+    int copyok = 0;
+
+    assert(proc2pid(p_who_wanna_recv) != src);
+    
     return 0;
 }
 
+/*
+ * Check if there is a cycle between src and dest
+ * Trace p_sendto one by one and see if it will loopback to src again
+ * Return 0 if success
+ */
 PRIVATE int deadlock(int src, int dest) {
+    struct proc* p = proc_table + dest;
+    while (1) {
+        if (p->p_flags & SENDING) {
+            if (p->p_sendto == src) {   // there is a loop!
+                // print out the loop
+                p = proc_table + dest;
+                printl("=_=%s", p->name);
+                do {
+                    assert(p->p_msg);
+                    p = proc_table + p->p_sendto;
+                    printl("->%s", p->name);
+                } while (p != proc_table + src);
+                printl("=_=");
+
+                return 1;
+            }
+            p = proc_table + p->p_sendto;
+        } else {
+            break;
+        }
+    }
     return 0;
 }
 

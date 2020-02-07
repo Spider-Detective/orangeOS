@@ -36,7 +36,7 @@ struct proc {
     int priority;                  // initial ticks of the process
 
     u32 pid;                       // process id
-    char p_name[16];               // name of the process
+    char name[16];               // name of the process
 
     int p_flags;
     MESSAGE* p_msg;

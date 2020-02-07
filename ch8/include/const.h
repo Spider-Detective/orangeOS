@@ -47,6 +47,10 @@ void assertion_failure(char* exp, char* file, char* base_file, int line);
 #define RPL_TASK        SA_RPL1
 #define RPL_USER        SA_RPL3
 
+/* Process */
+#define SENDING        0x02      /* set when proc trying to send */
+#define RECEIVING      0x04      /* set when proc trying to receive */
+
 /* TTY */
 #define NR_CONSOLES    3     /* consoles, 32kb video mem is enough for 3 80*25 consoles */
 
