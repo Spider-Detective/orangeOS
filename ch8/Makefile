@@ -12,13 +12,13 @@ ENTRYPOINT           = 0x30400
 ENTRYOFFSET          = 0x400
 
 ASM                  = nasm
-DASM                 = ndisasm
+DASM                 = objdump
 CC                   = gcc
 LD                   = ld
 ASMBFLAGS            = -I boot/include/      # for boot.bin
 ASMKFLAGS            = -I include/ -f elf    # for kernel.bin
-CFLAGS               = -I include/ -m32 -c -fno-stack-protector -fno-builtin 
-LDFLAGS              = -m elf_i386 -s -Ttext $(ENTRYPOINT)
+CFLAGS               = -I include/ -m32 -c -fno-stack-protector -fno-builtin -Wall
+LDFLAGS              = -m elf_i386 -s -Ttext $(ENTRYPOINT) -Map krnl.map
 DASMFLAGS            = -u -o $(ENTRYPOINT) -e $(ENTRYOFFSET)
 
 ORANGESBOOT          = boot/boot.bin boot/loader.bin

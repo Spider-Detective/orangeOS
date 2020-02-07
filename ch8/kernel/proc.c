@@ -29,7 +29,7 @@ PUBLIC void schedule() {
 
     while (!greatest_ticks) {
         // switch to the process with largest ticks
-        for (p = &LAST_PROC; p <= &LAST_PROC; p++) {
+        for (p = &FIRST_PROC; p <= &LAST_PROC; p++) {
             if (p->p_flags == 0) {
                 if (greatest_ticks < p->ticks) {
                     greatest_ticks = p->ticks;
@@ -40,7 +40,7 @@ PUBLIC void schedule() {
         // if all processes have 0 ticks, 
         // assign the initial ticks to all processes and switch to the largest one
         if (!greatest_ticks) {
-            for (p = &LAST_PROC; p <= &LAST_PROC; p++) {
+            for (p = &FIRST_PROC; p <= &LAST_PROC; p++) {
                 if (p->p_flags == 0) {
                     p->ticks = p->priority;
                 }
@@ -159,6 +159,36 @@ PRIVATE void unblock(struct proc* p) {
 }
 
 /*
+ * Check if there is a cycle between src and dest
+ * Trace p_sendto one by one and see if it will loopback to src again
+ * Return 0 if success
+ */
+PRIVATE int deadlock(int src, int dest) {
+    struct proc* p = proc_table + dest;
+    while (1) {
+        if (p->p_flags & SENDING) {
+            if (p->p_sendto == src) {   // there is a loop!
+                // print out the loop
+                p = proc_table + dest;
+                printl("=_=%s", p->name);
+                do {
+                    assert(p->p_msg);
+                    p = proc_table + p->p_sendto;
+                    printl("->%s", p->name);
+                } while (p != proc_table + src);
+                printl("=_=");
+
+                return 1;
+            }
+            p = proc_table + p->p_sendto;
+        } else {
+            break;
+        }
+    }
+    return 0;
+}
+
+/*
  * Send a message m to dest. See page 320.
  * First check deadlock, 
  * Then check if dest is RECEIVING, if yes, send m to dest and unblock it
@@ -243,7 +273,7 @@ PRIVATE int msg_receive(struct proc* current, int src, MESSAGE* m) {
     assert(proc2pid(p_who_wanna_recv) != src);
 
     // if there is a hardware intterupt, prepare the msg for int and return
-    if((p_who_wanna_recv->has_int_msg) &&
+    if ((p_who_wanna_recv->has_int_msg) &&
        ((src == ANY) || (src == INTERRUPT))) {
             MESSAGE msg;
             reset_msg(&msg);
@@ -311,79 +341,49 @@ PRIVATE int msg_receive(struct proc* current, int src, MESSAGE* m) {
             assert(p_from->p_recvfrom == NO_TASK);
             assert(p_from->p_sendto == proc2pid(p_who_wanna_recv));
         }
-
-        // check the flag copyok, if true, copy the message
-        if (copyok) {
-            // update the sending queue
-            if (p_from == p_who_wanna_recv->q_sending) {  // the first one in the queue
-                assert(prev == 0);
-                p_who_wanna_recv->q_sending = p_from->next_sending;
-                p_from->next_sending = 0;
-            } else {
-                assert(prev);
-                prev->next_sending = p_from->next_sending;
-                p_from->next_sending = 0;
-            }
-
-            assert(m);
-            assert(p_from->p_msg);
-            phys_copy(va2la(proc2pid(p_who_wanna_recv), m),
-                      va2la(proc2pid(p_from), p_from->p_msg),
-                      sizeof(MESSAGE));
-            p_from->p_msg = 0;
-            p_from->p_sendto = NO_TASK;
-            p_from->p_flags &= ~SENDING;
-            unblock(p_from);
-        } else {    // nobody is sending msg, block p_who_wanna_recv
-            p_who_wanna_recv->p_flags |= RECEIVING;
-            p_who_wanna_recv->p_msg = m;
-
-            if (src == ANY) {
-                p_who_wanna_recv->p_recvfrom = ANY;
-            } else {    
-                p_who_wanna_recv->p_recvfrom = proc2pid(p_from);
-            }
-
-            block(p_who_wanna_recv);
-
-            assert(p_who_wanna_recv->p_flags == RECEIVING);
-            assert(p_who_wanna_recv->p_msg != 0);
-            assert(p_who_wanna_recv->p_recvfrom != NO_TASK);
-            assert(p_who_wanna_recv->p_sendto == NO_TASK);
-            assert(p_who_wanna_recv->has_int_msg == 0);
-        }
     } 
-    
-    return 0;
-}
 
-/*
- * Check if there is a cycle between src and dest
- * Trace p_sendto one by one and see if it will loopback to src again
- * Return 0 if success
- */
-PRIVATE int deadlock(int src, int dest) {
-    struct proc* p = proc_table + dest;
-    while (1) {
-        if (p->p_flags & SENDING) {
-            if (p->p_sendto == src) {   // there is a loop!
-                // print out the loop
-                p = proc_table + dest;
-                printl("=_=%s", p->name);
-                do {
-                    assert(p->p_msg);
-                    p = proc_table + p->p_sendto;
-                    printl("->%s", p->name);
-                } while (p != proc_table + src);
-                printl("=_=");
-
-                return 1;
-            }
-            p = proc_table + p->p_sendto;
+    // check the flag copyok, if true, copy the message
+    if (copyok) {
+        // update the sending queue
+        if (p_from == p_who_wanna_recv->q_sending) {  // the first one in the queue
+            assert(prev == 0);
+            p_who_wanna_recv->q_sending = p_from->next_sending;
+            p_from->next_sending = 0;
         } else {
-            break;
+            assert(prev);
+            prev->next_sending = p_from->next_sending;
+            p_from->next_sending = 0;
         }
+
+        assert(m);
+        assert(p_from->p_msg);
+        phys_copy(va2la(proc2pid(p_who_wanna_recv), m),
+                    va2la(proc2pid(p_from), p_from->p_msg),
+                    sizeof(MESSAGE));
+        p_from->p_msg = 0;
+        p_from->p_sendto = NO_TASK;
+        p_from->p_flags &= ~SENDING;
+        unblock(p_from);
+    } else {    // nobody is sending msg, block p_who_wanna_recv
+        p_who_wanna_recv->p_flags |= RECEIVING;
+        p_who_wanna_recv->p_msg = m;
+
+        if (src == ANY) {
+            p_who_wanna_recv->p_recvfrom = ANY;
+        } else {    
+            p_who_wanna_recv->p_recvfrom = proc2pid(p_from);
+        }
+
+        block(p_who_wanna_recv);
+
+        assert(p_who_wanna_recv->p_flags == RECEIVING);
+        assert(p_who_wanna_recv->p_msg != 0);
+        assert(p_who_wanna_recv->p_recvfrom != NO_TASK);
+        assert(p_who_wanna_recv->p_sendto == NO_TASK);
+        assert(p_who_wanna_recv->has_int_msg == 0);
     }
+    
     return 0;
 }
 

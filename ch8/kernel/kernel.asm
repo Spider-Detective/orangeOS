@@ -297,6 +297,24 @@ save:
 		push    restart_reenter				  ; push restart_reenter()					
 		jmp     [esi + RETADR - P_STACKBASE]  ; jump back to hwint00()
 
+sys_call:
+		call    save
+
+		sti
+		push    esi
+
+		push    dword [p_proc_ready]
+		push    edx
+		push    ecx
+		push    ebx
+		call    [sys_call_table + eax * 4]          ; see global.c, eax is set to 0 in syscall.asm, call sys_get_ticks()
+		add     esp, 4 * 4
+
+		pop     esi
+		mov     [esi + EAXREG - P_STACKBASE], eax   ; give the correct return value from sys_get_ticks(), after shift back to user process
+		cli
+		ret
+
 ; After called kernel_main in main.c, the process table is ready
 ; pop all related regs and leave the stack as Figure 3.45
 ; Finally, call iretd to ring0 -> ring1
@@ -320,21 +338,3 @@ restart_reenter:
 		; ensure the stack has eip, cs, eflags, esp and ss
 		; when calling retd, the process will access the entry point: regs.eip == TestA
 		iretd
-
-sys_call:
-		call    save
-
-		sti
-		push    esi
-
-		push    dword [p_proc_ready]
-		push    edx
-		push    ecx
-		push    ebx
-		call    [sys_call_table + eax * 4]          ; see global.c, eax is set to 0 in syscall.asm, call sys_get_ticks()
-		add     esp, 4 * 4
-
-		pop     esi
-		mov     [esi + EAXREG - P_STACKBASE], eax   ; give the correct return value from sys_get_ticks(), after shift back to user process
-		cli
-		ret
