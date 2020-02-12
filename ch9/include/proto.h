@@ -11,6 +11,8 @@ PUBLIC void	disable_irq(int irq);
 PUBLIC void	enable_irq(int irq);
 PUBLIC void	disable_int();
 PUBLIC void	enable_int();
+PUBLIC void port_read(u16 port, void* buf, int n);
+PUBLIC void port_write(u16 port, void* buf, int n);
 
 /* string.asm */
 PUBLIC char*	strcpy(char* dst, const char* src);
@@ -43,6 +45,10 @@ PUBLIC void spurious_irq(int irq);
 PUBLIC void clock_handler(int irq);
 PUBLIC void init_clock();
 PUBLIC void milli_delay(int milli_sec);
+
+/* kernel/hd.c */
+PUBLIC void task_hd();
+PUBLIC void hd_handler(int irq);
 
 /* keyboard.c */
 PUBLIC void init_keyboard();
@@ -78,6 +84,7 @@ PUBLIC	void	reset_msg(MESSAGE* p);
 PUBLIC	void	dump_msg(const char * title, MESSAGE* m);
 PUBLIC	void	dump_proc(struct proc * p);
 PUBLIC	int	    send_recv(int function, int src_dest, MESSAGE* msg);
+PUBLIC  void    inform_int(int task_nr);
 
 /* lib/misc.c */
 PUBLIC void     spin(char * func_name);

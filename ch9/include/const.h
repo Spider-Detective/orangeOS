@@ -19,6 +19,9 @@ void assertion_failure(char* exp, char* file, char* base_file, int line);
 
 #define STR_DEFAULT_LEN 1024
 
+#define max(a, b)    (a > b ? a : b)
+#define min(a, b)    (a < b ? a : b)
+
 #define TRUE    1
 #define FALSE   0
 
@@ -122,8 +125,21 @@ void assertion_failure(char* exp, char* file, char* base_file, int line);
 enum msgtype {
     HARD_INT = 1,
     GET_TICKS,
+
+    /* msg type for drivers */
+    DEV_OPEN = 1001,
+    DEV_CLOSE,
+    DEV_READ,
+    DEV_WRITE,
+    DEV_IOCTL
 };
 
+#define CNT             u.m3.m3i2
+#define REQUEST         u.m3.m3i2
+#define PROC_NR         u.m3.m3i3
+#define DEVICE          u.m3.m3i4
+#define POSITION        u.m3.m3l1
+#define BUF             u.m3.m3p2
 #define RETVAL          u.m3.m3i1
 
 #endif /* _ORANGES_CONST_H_ */
