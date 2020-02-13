@@ -15,6 +15,9 @@ global  enable_irq
 global  disable_irq
 global  disable_int
 global  enable_int
+global  port_read
+global  port_write
+global  glitter
 
 ;; show up a string, void disp_str(char * info);
 disp_str:
@@ -110,6 +113,27 @@ in_byte:
         in      al, dx
         nop
         nop
+        ret
+
+; void port_read(u16 port, void* buf, int n);
+port_read:
+        mov     edx, [esp + 4]
+        mov     edi, [esp + 8]
+        mov     ecx, [esp + 12]
+        shr     ecx, 1
+        cld
+        rep     insw
+        ret
+
+; void port_write(u16 port, void* buf, int n);
+port_write:
+        mov     edx, [esp + 4]
+        mov     edi, [esp + 8]
+        mov     ecx, [esp + 12]
+        shr     ecx, 1
+        cld
+        rep     outsw     ; outsw: Output word from memory location in DS:(E)SI to I/O port specified in DX
+                          ; rep: Repeat while equal: Copy the 8-bit byte from the DS:[(E)SI] to the ES:[(E)DI] register.
         ret
 
 ; disable the interrupt of 8259 for a given irq

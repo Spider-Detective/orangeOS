@@ -1,6 +1,9 @@
 #ifndef _ORANGES_HD_H_
 #define _ORANGES_HD_H_
 
+/*
+ * partition entry struct
+ */
 struct part_ent {
     u8 boot_ind;
     u8 start_head;
@@ -20,10 +23,10 @@ struct part_ent {
 #define REG_DATA      0x1F0
 #define REG_FEATURES  0x1F1
 #define REG_ERROR     REG_FEATURES
-#define REF_NSECTOR   0x1F2
+#define REG_NSECTOR   0x1F2
 #define REG_LBA_LOW   0x1F3
 #define REG_LBA_MID   0x1F4
-#define REF_LBA_HIGH  0x1F5
+#define REG_LBA_HIGH  0x1F5
 #define REG_DEVICE    0x1F6
 #define REG_STATUS    0x1F7
 
@@ -45,10 +48,33 @@ struct part_ent {
 
 #define REG_DRV_ADDR   0x3F7
 
+// command register values
+struct hd_cmd {
+    u8 features;
+    u8 count;
+    u8 lba_low;
+    u8 lba_mid;
+    u8 lba_high;
+    u8 device;
+    u8 command;
+};
+
+struct part_info {
+    u32 base;
+    u32 size;
+};
+
+// one entry per drive
+struct hd_info {
+    int                  open_cnt;
+    struct part_info     primary[NR_PRIM_PER_DRIVE];
+    struct part_info     logical[NR_SUB_PER_DRIVE];
+}
+
 /* Constants */
 #define HD_TIMEOUT              10000   // in ms
 #define PARTITION_TABLE_OFFSET  0x1BE
-#define ATA_IDENTITY            0xEC
+#define ATA_IDENTIFY            0xEC
 #define ATA_READ                0x20
 #define ATA_WRITE               0x30
 
