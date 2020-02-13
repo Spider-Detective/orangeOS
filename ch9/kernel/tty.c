@@ -2,6 +2,7 @@
 #include "const.h"
 #include "protect.h"
 #include "string.h"
+#include "fs.h"
 #include "proc.h"
 #include "tty.h"
 #include "console.h"
@@ -20,9 +21,6 @@ PRIVATE void put_key(TTY* p_tty, u32 key);
 // loop over all consoles and do write and read if necessary
 PUBLIC void task_tty() {
     TTY*    p_tty;
-
-    // panic("in TTY");
-    // assert(0);
 
     init_keyboard();
     for (p_tty = TTY_FIRST; p_tty < TTY_END; p_tty++) {

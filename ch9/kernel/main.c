@@ -2,6 +2,7 @@
 #include "const.h"
 #include "protect.h"
 #include "string.h"
+#include "fs.h"
 #include "proc.h"
 #include "tty.h"
 #include "console.h"
@@ -15,7 +16,7 @@ PUBLIC int kernel_main() {
     disp_str("-----\"kernel_main\" begins-----\n");
 
     // prepare the process table for all processes
-    struct task*      p_task        = task_table;
+    struct task*      p_task;
     struct proc*      p_proc        = proc_table;
     char*             p_task_stack  = task_stack + STACK_SIZE_TOTAL;
     u16               selector_ldt  = SELECTOR_LDT_FIRST; 
@@ -113,6 +114,7 @@ PUBLIC int get_ticks() {
  * in restart() and the handler: mov dword [tss + TSS3_S_SP0], eax)
  */
 void TestA() {
+    for (;;);
     while (1) {
         printf("<Ticks:%d>", get_ticks());
         milli_delay(200);   // now each delay has 1 tick

@@ -17,7 +17,7 @@ global  disable_int
 global  enable_int
 global  port_read
 global  port_write
-global  glitter
+;global  glitter
 
 ;; show up a string, void disp_str(char * info);
 disp_str:
