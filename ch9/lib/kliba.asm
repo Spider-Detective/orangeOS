@@ -17,7 +17,7 @@ global  disable_int
 global  enable_int
 global  port_read
 global  port_write
-;global  glitter
+global  glitter
 
 ;; show up a string, void disp_str(char * info);
 disp_str:
@@ -207,4 +207,52 @@ disable_int:
 ; void enable_int();
 enable_int:
         sti
+        ret
+
+; void glitter(int row, int col);
+; print out strings defined in .glitter_str one by one
+glitter:
+        push    eax
+        push    ebx
+        push    edx
+
+        mov     eax, [.current_char]
+        inc     eax
+        cmp     eax, .strlen
+        je      .1
+        jmp     .2
+.1:
+        xor     eax, eax
+.2:
+        mov     [.current_char], eax
+        mov     dl, byte [eax + .glitter_str]
+
+        xor     eax, eax
+        mov     al, [esp + 16]         ; row
+        mov     bl, .line_width
+        mul     bl                     ; ax <- row * 80
+        mov     bx, [esp + 20]         ; col
+        add     ax, bx                 ; col + row * 80
+        shl     ax, 1
+        movzx   eax, ax
+
+        mov     [gs:eax], dl
+
+        inc     eax
+        mov     byte [gs:eax], 4
+
+        jmp     .end
+
+.current_char:  dd        0
+.glitter_str:   db        '-\|/'
+                db        '1234567890'
+                db        'abcdefghijklmnopqrstuvwxyz'
+                db        'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+.strlen         equ       $ - .glitter_str
+.line_width     equ       80
+
+.end:
+        pop     edx
+        pop     ebx
+        pop     eax
         ret

@@ -13,6 +13,7 @@ PUBLIC void	disable_int();
 PUBLIC void	enable_int();
 PUBLIC void port_read(u16 port, void* buf, int n);
 PUBLIC void port_write(u16 port, void* buf, int n);
+PUBLIC void glitter(int row, int col);
 
 /* string.asm */
 PUBLIC char*	strcpy(char* dst, const char* src);
@@ -24,7 +25,7 @@ PUBLIC u32	seg2phys(u16 seg);
 /* klib.c */
 PUBLIC void	delay(int time);
 PUBLIC void	disp_int(int input);
-PUBLIC char *	itoa(char * str, int num);
+PUBLIC char* itoa(char * str, int num);
 
 /* kernel.asm */
 PUBLIC void restart();

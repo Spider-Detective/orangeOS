@@ -198,12 +198,12 @@ enum msgtype {
 #define	P_EXTENDED	1
 
 #define ORANGES_PART	0x99	/* Orange'S partition */
-#define NO_PART		0x00	/* unused entry */
-#define EXT_PART	0x05	/* extended partition */
+#define NO_PART		    0x00	/* unused entry */
+#define EXT_PART	    0x05	/* extended partition */
 
-#define	NR_FILES	64
+#define	NR_FILES	    64
 #define	NR_FILE_DESC	64	/* FIXME */
-#define	NR_INODE	64	/* FIXME */
+#define	NR_INODE	    64	/* FIXME */
 #define	NR_SUPER_BLOCK	8
 
 
