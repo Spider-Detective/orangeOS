@@ -43,10 +43,20 @@ Then type enter, type c
     * in Bochs terminal, clean up floppy b by ``` format B: ``` (for the first time only) 
     * type ```B:\[image_name].com```
     
-### For ch5/ and on, boot.bin is ready
+### For ch5/ to ch8/, boot.bin is ready
 * Create floppy image **a.img** by ```bximage```
 * To compile and write into floppy, please review the Makefile, or simply: 
 ```make image```
 * To run in Bochs **with debugger**:
 ```bochs```.
 Then type enter, type c
+
+### For ch9/ and on, booting is the same as ch5/ to ch8/
+1. Additionally, create a hard disk image **80m.img** by ```bximage```:
+```Type: hd, Kind: flat, Size: 80, Name: 80m.img```
+2. And add these 2 lines in .bochsrc file:
+``` shell
+ata0: enabled=1, ioaddr1=0x1f0, ioaddr2=0x3f0, irq=14
+ata0-master: type=disk, path="80m.img", mode=flat
+```
+
