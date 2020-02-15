@@ -59,4 +59,6 @@ Then type enter, type c
 ata0: enabled=1, ioaddr1=0x1f0, ioaddr2=0x3f0, irq=14
 ata0-master: type=disk, path="80m.img", mode=flat
 ```
-
+3. To partition the HD:
+  * ```/sbin/fdisk -c=dos -u=cylinders 80m.img```
+  * Then partition the HD in fdisk command line, refer to https://www.geeksforgeeks.org/fdisk-command-in-linux-with-examples/
