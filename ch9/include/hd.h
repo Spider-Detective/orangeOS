@@ -59,12 +59,13 @@ struct hd_cmd {
     u8 command;
 };
 
+// info for one partition
 struct part_info {
     u32 base;
     u32 size;
 };
 
-// one entry per drive
+// one entry per drive, recording partition infos of primary and logical
 struct hd_info {
     int                  open_cnt;
     struct part_info     primary[NR_PRIM_PER_DRIVE];

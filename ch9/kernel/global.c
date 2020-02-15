@@ -31,13 +31,17 @@ PUBLIC irq_handler       irq_table[NR_IRQ];
 
 PUBLIC system_call       sys_call_table[NR_SYS_CALL] = {sys_printx, sys_sendrec};
 
+/*
+ * Array to map the major device No. to the corresponding driver program
+ * See const.h
+ */
 struct dev_drv_map dd_map[] = {
-    {INVALID_DRIVER},
-    {INVALID_DRIVER},
-    {INVALID_DRIVER},
-    {TASK_HD},
-    {TASK_TTY},
-    {INVALID_DRIVER}
+    {INVALID_DRIVER},     // 0: no device
+    {INVALID_DRIVER},     // 1: floppy driver
+    {INVALID_DRIVER},     // 2: cd-rom driver
+    {TASK_HD},            // 3: hard disk
+    {TASK_TTY},           // 4: TTY
+    {INVALID_DRIVER}      // 5: scsi disk driver
 };
 
 // Buffer for FS: 6MB-7MB

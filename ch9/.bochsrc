@@ -15,7 +15,7 @@ floppya: 1_44=a.img, status=inserted
 
 # hard disk, ata is the hard disk standard, see Page 325
 ata0: enabled=1, ioaddr1=0x1f0, ioaddr2=0x3f0, irq=14
-ata0-master: type=disk, path="80m.img", mode=flat # hard disk image '80m.img' with CHS=162/16/63
+ata0-master: type=disk, path="80m.img", mode=flat, cylinders=162, heads=16, spt=63
 
 # choose the boot disk
 boot: a

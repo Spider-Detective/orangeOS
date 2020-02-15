@@ -11,14 +11,23 @@
 #include "hd.h"
 
 PRIVATE void init_hd              ();
+PRIVATE void hd_open              (int device);
 PRIVATE void hd_cmd_out           (struct hd_cmd* cmd);
+PRIVATE void get_part_table       (int drive, int sect_nr, struct part_ent* entry);
+PRIVATE void partition            (int device, int style);
+PRIVATE void print_hdinfo         (struct hd_info* hdi);
 PRIVATE int  waitfor              (int mask, int val, int timeout);
 PRIVATE void interrupt_wait       ();
 PRIVATE void hd_identify          (int drive);
 PRIVATE void print_identify_info  (u16* hdinfo);
 
-PRIVATE u8   hd_status;
-PRIVATE u8   hdbuf[SECTOR_SIZE * 2];
+PRIVATE u8              hd_status;
+PRIVATE u8              hdbuf[SECTOR_SIZE * 2];
+PRIVATE struct hd_info  hd_info[1];
+
+#define DRV_OF_DEV(dev) (dev <= MAX_PRIM ? \
+                         dev / NR_PRIM_PER_DRIVE : \
+                         (dev - MINOR_hd1a) / NR_SUB_PER_DRIVE)
 
 // main function to send/recv and handle HD-related msg
 PUBLIC void task_hd() {
@@ -31,7 +40,7 @@ PUBLIC void task_hd() {
         int src = msg.source;
         switch(msg.type) {
             case DEV_OPEN:
-                hd_identify(0);
+                hd_open(msg.DEVICE);
                 break;
             default:
                 dump_msg("HD driver::unknown msg", &msg);
@@ -53,6 +62,28 @@ PRIVATE void init_hd() {
     put_irq_handler(AT_WINI_IRQ, hd_handler);
     enable_irq(CASCADE_IRQ);       // must enable this! HD is on the slave 8259
     enable_irq(AT_WINI_IRQ);
+
+    // initialize hd_info array
+    for (int i = 0; i < (sizeof(hd_info) / sizeof(hd_info[0])); i++) {
+        memset(&hd_info[i], 0, sizeof(hd_info[0]));
+    }
+    hd_info[0].open_cnt = 0;
+}
+
+PRIVATE void hd_open(int device) {
+
+}
+
+PRIVATE void get_part_table(int drive, int sect_nr, struct part_ent* entry) {
+
+}
+
+PRIVATE void partition(int device, int style) {
+
+}
+
+PRIVATE void print_hdinfo(struct hd_info* hdi) {
+
 }
 
 // get the disk info, after receiving DEV_OPEN msg
@@ -65,6 +96,12 @@ PRIVATE void hd_identify(int drive) {
     port_read(REG_DATA, hdbuf, SECTOR_SIZE);   // in kliba.asm
 
     print_identify_info((u16*)hdbuf);
+
+    // store the base/size info into the hd_info array
+    u16* hdinfo = (u16*)hdbuf;
+    hd_info[drive].primary[0].base = 0;
+    // total number of User addressable Sectors
+    hd_info[drive].primary[0].size = ((int)hdinfo[61] << 16) + hdinfo[60];
 }
 
 // print the info retrived from ATA_IDENTIFY command to hd
