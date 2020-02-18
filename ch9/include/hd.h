@@ -68,7 +68,7 @@ struct part_info {
 // one entry per drive, recording partition infos of primary and logical
 struct hd_info {
     int                  open_cnt;
-    struct part_info     primary[NR_PRIM_PER_DRIVE];
+    struct part_info     primary[NR_PRIM_PER_DRIVE]; // primary[0] records base and size of the starting sector of the HD
     struct part_info     logical[NR_SUB_PER_DRIVE];
 };
 

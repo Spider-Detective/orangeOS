@@ -25,6 +25,7 @@ PRIVATE u8              hd_status;
 PRIVATE u8              hdbuf[SECTOR_SIZE * 2];
 PRIVATE struct hd_info  hd_info[1];
 
+// get the drive number (0 or 1) from given device number, see Figure 9.9
 #define DRV_OF_DEV(dev) (dev <= MAX_PRIM ? \
                          dev / NR_PRIM_PER_DRIVE : \
                          (dev - MINOR_hd1a) / NR_SUB_PER_DRIVE)
@@ -70,20 +71,120 @@ PRIVATE void init_hd() {
     hd_info[0].open_cnt = 0;
 }
 
+/*
+ * handles DEV_OPEN message, get the HD if the given device and read the partition table
+ */
 PRIVATE void hd_open(int device) {
+    int drive = DRV_OF_DEV(device);   // must be 0 here, since only 1 HD
+    assert(drive == 0);
 
+    hd_identify(drive);
+
+    if (hd_info[drive].open_cnt++ == 0) {
+        partition(drive * (NR_PART_PER_DRIVE + 1), P_PRIMARY);
+        print_hdinfo(&hd_info[drive]);
+    }
 }
 
+// read one partition table of a given drive
+// sect_nr: the sector in the drive locating the partition table
 PRIVATE void get_part_table(int drive, int sect_nr, struct part_ent* entry) {
+    struct hd_cmd cmd;
+    cmd.features   = 0;
+    cmd.count      = 1;
+    cmd.lba_low    = sect_nr & 0xFF;
+    cmd.lba_mid    = (sect_nr >> 8) & 0xFF;
+    cmd.lba_high   = (sect_nr >> 16) & 0xFF;
+    cmd.device     = MAKE_DEVICE_REG(1, drive, (sect_nr >> 24) & 0xF);
+    cmd.command    = ATA_READ;
+    hd_cmd_out(&cmd);
+    interrupt_wait();
 
+    port_read(REG_DATA, hdbuf, SECTOR_SIZE);
+    memcpy(entry,
+           hdbuf + PARTITION_TABLE_OFFSET,
+           sizeof(struct part_ent) * NR_PART_PER_DRIVE);
 }
 
+// read all the partition table and fill the hd_info struct
 PRIVATE void partition(int device, int style) {
+    int i;
+    int drive = DRV_OF_DEV(device);
+    struct hd_info* hdi = &hd_info[drive];
 
+    struct part_ent part_tbl[NR_SUB_PER_DRIVE];
+
+    if (style == P_PRIMARY) {
+        get_part_table(drive, drive, part_tbl);
+
+        int nr_prim_parts = 0;
+        for (i = 0; i < NR_PART_PER_DRIVE; i++) {
+            if (part_tbl[i].sys_id == NO_PART) {
+                continue;
+            }
+            nr_prim_parts++;
+            int dev_nr = i + 1;  // 1-4
+            hdi->primary[dev_nr].base = part_tbl[i].start_sect;
+            hdi->primary[dev_nr].size = part_tbl[i].nr_sects;
+
+            if (part_tbl[i].sys_id == EXT_PART) {   // continue to read the extended partition
+                partition(device + dev_nr, P_EXTENDED);
+            }
+            assert(nr_prim_parts != 0);
+        }
+    } else if (style == P_EXTENDED) {
+        int j = device % NR_PRIM_PER_DRIVE;  // 1-4
+        int ext_start_sect = hdi->primary[j].base;
+        int s = ext_start_sect;
+        int nr_1st_sub = (j - 1) * NR_SUB_PER_PART;
+
+        for (i = 0; i < NR_SUB_PER_PART; i++) {
+            int dev_nr = nr_1st_sub + i;
+            get_part_table(drive, s, part_tbl);
+            hdi->logical[dev_nr].base = s + part_tbl[0].start_sect; // add the base offset, see Figure 9.7
+            hdi->logical[dev_nr].size = part_tbl[0].nr_sects;
+
+            /*
+             * move s to the next logical partitions
+             * each logical partitions contains one normal partition and one extended (05) parition,
+             * the extended partition (part_tbl[1]) contains the address of the next logical partition
+             * See Table 9.5 and 9.6
+             */
+            s = ext_start_sect + part_tbl[1].start_sect;
+
+            if (part_tbl[1].sys_id == NO_PART) { // no more logical partitions in this extended
+                break;
+            }
+        }
+    } else {
+        assert(0);
+    }
 }
 
+// print out the disk info
 PRIVATE void print_hdinfo(struct hd_info* hdi) {
-
+    int i;
+    for (i = 0; i < NR_PART_PER_DRIVE + 1; i++) {
+        printl("%sPART_%d: base %d(0x%x), size %d(0x%x) (in sector)\n",
+               i == 0 ? " " : "     ",   // 0 is for starting sector
+               i,
+               hdi->primary[i].base,
+               hdi->primary[i].base,
+               hdi->primary[i].size,
+               hdi->primary[i].size);
+    }
+    for (i = 0; i < NR_SUB_PER_DRIVE; i++) {
+        if (hdi->logical[i].size == 0) {
+            continue;
+        }
+        printl("      "
+               "%d: base %d(0x%x), size %d(0x%x) (in sector)\n",
+               i,
+               hdi->logical[i].base,
+               hdi->logical[i].base,
+               hdi->logical[i].size,
+               hdi->logical[i].size);
+    }
 }
 
 // get the disk info, after receiving DEV_OPEN msg
