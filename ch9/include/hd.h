@@ -2,10 +2,10 @@
 #define _ORANGES_HD_H_
 
 /*
- * partition entry struct
+ * partition entry struct (16 bytes), see Table 9.3
  */
 struct part_ent {
-    u8 boot_ind;
+    u8 boot_ind;      // only 80h or 00h
     u8 start_head;
     u8 start_sector;
     u8 start_cyl;
@@ -13,7 +13,7 @@ struct part_ent {
     u8 end_head;
     u8 end_sector;
     u8 end_cyl;
-    u32 start_sect;
+    u32 start_sect;   // counted from 0, in LBA, see https://en.wikipedia.org/wiki/Logical_block_addressing#CHS_conversion
     u32 nr_sects;
 } PARTIRION_ENTRY;
 
@@ -61,8 +61,8 @@ struct hd_cmd {
 
 // info for one partition
 struct part_info {
-    u32 base;
-    u32 size;
+    u32 base;      // # of start sector
+    u32 size;      // # of sectors in the partition
 };
 
 // one entry per drive, recording partition infos of primary and logical

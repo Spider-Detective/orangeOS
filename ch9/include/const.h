@@ -173,7 +173,7 @@ enum msgtype {
 #define	MAX_DRIVES		    2       // 2 HD connecting to primary IDE (hd0, hd5)
 #define	NR_PART_PER_DRIVE	4       // 4 partition in each HD  (hd1-hd4, hd6-hd9)
 #define	NR_SUB_PER_PART		16      // 16 logical partitions in each extended partition (hd1a-hd1p, ...)
-#define	NR_SUB_PER_DRIVE	(NR_SUB_PER_PART * NR_PART_PER_DRIVE)
+#define	NR_SUB_PER_DRIVE	(NR_SUB_PER_PART * NR_PART_PER_DRIVE)   // 64
 #define	NR_PRIM_PER_DRIVE	(NR_PART_PER_DRIVE + 1)    // hd0-hd4
 /**
  * @def MAX_PRIM
@@ -182,11 +182,11 @@ enum msgtype {
  * equals 9. 
  * Device No. > MAX_PRTM means it is logical partition; otherwise master partition
  */
-#define	MAX_PRIM		    (MAX_DRIVES * NR_PRIM_PER_DRIVE - 1)
+#define	MAX_PRIM		    (MAX_DRIVES * NR_PRIM_PER_DRIVE - 1)   // 9
 #define	MAX_SUBPARTITIONS	(NR_SUB_PER_DRIVE * MAX_DRIVES)
 
 /* device numbers of hard disk */
-#define	MINOR_hd1a		0x10
+#define	MINOR_hd1a		0x10    // define the first as 16, see Figure 9.9
 #define	MINOR_hd2a		(MINOR_hd1a + NR_SUB_PER_PART)
 // #define	MINOR_hd2b		0x21
 // #define	MINOR_hd3a		0x30
