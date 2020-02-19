@@ -148,8 +148,8 @@ enum msgtype {
 #define	DIOCTL_GET_GEO	1
 
 /* Hard Drive */
-#define SECTOR_SIZE		512
-#define SECTOR_BITS		(SECTOR_SIZE * 8)
+#define SECTOR_SIZE		    512
+#define SECTOR_BITS		    (SECTOR_SIZE * 8)
 #define SECTOR_SIZE_SHIFT	9
 
 /* See Page 346. major device numbers (corresponding to kernel/global.c::dd_map[]) */
@@ -216,7 +216,7 @@ enum msgtype {
 #define I_NAMED_PIPE	0010000
 
 #define	is_special(m)	((((m) & I_TYPE_MASK) == I_BLOCK_SPECIAL) ||	\
-			 (((m) & I_TYPE_MASK) == I_CHAR_SPECIAL))
+			            (((m) & I_TYPE_MASK) == I_CHAR_SPECIAL))
 
 #define	NR_DEFAULT_FILE_SECTS	2048 /* 2048 * 512 = 1MB */
 
