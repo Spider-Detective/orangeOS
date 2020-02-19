@@ -7,6 +7,7 @@ struct dev_drv_map {
 
 #define MAGIC_V1      0x111
 
+// see Page 357. super block takes up 1 sector (512 bytes)
 struct super_block {
     u32    magic;
     u32    nr_inodes;
@@ -24,25 +25,35 @@ struct super_block {
     u32    dir_ent_inode_off;
     u32    dir_ent_fname_off;
 
+    // this stores the home device number after reading super block into memory
     int    sb_dev;
 };
 
-#define SUPER_BLK_MAGIC_V1      0x111
-#define SUPER_BLK_SIZE          56
+#define SUPER_BLOCK_SIZE          56
 
 struct inode {
-    u32    i_mode;
-    u32    i_size;
-    u32    i_start_sect;
+    u32    i_mode;             // access mode
+    u32    i_size;             // file size
+    u32    i_start_sect;       // first sector of data
     u32    i_nr_sects;
     u8     _unused[16];        // for alignment
 
+    // write into these values after reading into memory
     int    i_dev;
     int    i_cnt;
     int    i_num;
 };
 
 #define INODE_SIZE              32
+#define MAX_FILENAME_LEN        12
+
+// store the node and name for one directory
+struct dir_entry {
+    int    inode_nr;
+    char   name[MAX_FILENAME_LEN]
+};
+
+#define DIR_ENTRY_SIZE  sizeof(struct dir_entry)
 
 struct file_desc {
     int            fd_mode;   // read or write
@@ -50,6 +61,7 @@ struct file_desc {
     struct inode*  fd_inode;  // pointer to i-node
 };
 
+// a wrapper for rw_sector to reduce the argument number
 #define RD_SECT(dev, sect_nr) rw_sector(DEV_READ, \
                                         dev,      \
                                         (sect_nr)* SECTOR_SIZE,   \

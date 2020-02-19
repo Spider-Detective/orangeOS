@@ -44,6 +44,6 @@ struct dev_drv_map dd_map[] = {
     {INVALID_DRIVER}      // 5: scsi disk driver
 };
 
-// Buffer for FS: 6MB-7MB
+// Buffer for FS: 6MB-7MB, used in fs/main.c
 PUBLIC  u8*        fsbuf        = (u8*)0x600000;
 PUBLIC  const int  FSBUF_SIZE   = 0x100000;

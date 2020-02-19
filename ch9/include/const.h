@@ -106,7 +106,7 @@ void assertion_failure(char* exp, char* file, char* base_file, int line);
 #define TASK_TTY	    0
 #define TASK_SYS	    1
 #define TASK_HD     	2
-/* #define TASK_FS	3 */
+#define TASK_FS	        3 
 /* #define TASK_MM	4 */
 #define ANY		        (NR_TASKS + NR_PROCS + 10)
 #define NO_TASK		    (NR_TASKS + NR_PROCS + 20)
@@ -192,7 +192,7 @@ enum msgtype {
 // #define	MINOR_hd3a		0x30
 // #define	MINOR_hd4a		0x40
 
-#define	ROOT_DEV		MAKE_DEV(DEV_HD, MINOR_BOOT)	/* 3, 0x21 */
+#define	ROOT_DEV		MAKE_DEV(DEV_HD, MINOR_BOOT)	/* 3, 0x20 */
 
 #define	P_PRIMARY	0
 #define	P_EXTENDED	1

@@ -64,6 +64,7 @@ PUBLIC void task_sys();
 
 /* fs/main.c */
 PUBLIC void task_fs();
+PUBLIC int  rw_sector(int io_type, int dev, u64 pos, int bytes, int proc_nr, void* buf);
 
 /* console.c */
 PUBLIC void out_char(CONSOLE* p_con, char ch);
