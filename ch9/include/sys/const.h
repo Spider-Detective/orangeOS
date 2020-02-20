@@ -2,23 +2,6 @@
 #ifndef _ORANGES_CONST_H_
 #define _ORANGES_CONST_H_
 
-#define ASSERT
-#ifdef  ASSERT
-void assertion_failure(char* exp, char* file, char* base_file, int line);
-#define assert(exp)  if (exp) ; \
-                else assertion_failure(#exp, __FILE__, __BASE_FILE__, __LINE__)
-#else
-#define assert(exp)
-#endif
-/* EXTERN is defined as "extern" except in global.c, see global.h */
-#define EXTERN extern
-
-// function types
-#define PUBLIC
-#define PRIVATE static
-
-#define STR_DEFAULT_LEN 1024
-
 #define max(a, b)    (a > b ? a : b)
 #define min(a, b)    (a < b ? a : b)
 
@@ -124,7 +107,12 @@ void assertion_failure(char* exp, char* file, char* base_file, int line);
 
 enum msgtype {
     HARD_INT = 1,
-    GET_TICKS,
+    GET_TICKS,  // SYS task
+
+    /* FS */
+    OPEN, CLOSE, READ, WRITE, LSEEK, STAT, UNLINK,
+
+    SYSCALL_RET,
 
     /* msg type for drivers */
     DEV_OPEN = 1001,
@@ -134,12 +122,20 @@ enum msgtype {
     DEV_IOCTL
 };
 
+// message macros
+#define FD              u.m3.m3i1
+#define PATHNAME        u.m3.m3p1
+#define FLAGS           u.m3.m3i1
+#define NAME_LEN        u.m3.m3i2
 #define CNT             u.m3.m3i2
 #define REQUEST         u.m3.m3i2
 #define PROC_NR         u.m3.m3i3
 #define DEVICE          u.m3.m3i4
 #define POSITION        u.m3.m3l1
 #define BUF             u.m3.m3p2
+#define OFFSET          u.m3.m3i2
+#define WHENCE          u.m3.m3i3
+
 #define RETVAL          u.m3.m3i1
 
 

@@ -25,7 +25,7 @@ struct stackframe {
     u32    ss;
 };
 
-// process table
+// process table, store the info for each process
 struct proc {
     struct stackframe regs;              // regs for the process saved in stack
 
@@ -48,6 +48,8 @@ struct proc {
     struct proc* next_sending;
 
     int nr_tty;
+
+    struct file_desc* filp[NR_FILES];   // stores the array of file descriptor
 };
 
 // data structure to store the initilization info of a task/process, to be put into process table

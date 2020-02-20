@@ -1,4 +1,5 @@
 #include "type.h"
+#include "stdio.h"
 #include "config.h"
 #include "const.h"
 #include "protect.h"

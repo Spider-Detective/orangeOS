@@ -5,6 +5,7 @@
  * sys_call() calls sys_get_ticks() in sys_call_table (proc.c)
  */
 #include "type.h"
+#include "stdio.h"
 #include "const.h"
 #include "protect.h"
 #include "tty.h"

@@ -3,6 +3,7 @@
  */
 
 #include "type.h"
+#include "stdio.h"
 #include "const.h"
 #include "protect.h"
 #include "tty.h"

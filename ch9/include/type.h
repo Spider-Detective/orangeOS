@@ -5,6 +5,10 @@
 #ifndef _ORANGES_TYPE_H_
 #define _ORANGES_TYPE_H_
 
+// function types
+#define PUBLIC
+#define PRIVATE static
+
 typedef unsigned long long     u64;
 typedef unsigned int           u32;
 typedef unsigned short         u16;

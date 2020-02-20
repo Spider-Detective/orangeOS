@@ -55,10 +55,11 @@ struct dir_entry {
 
 #define DIR_ENTRY_SIZE  sizeof(struct dir_entry)
 
+// file descriptor, in file descriptor table (array), see Figure 9.12
 struct file_desc {
     int            fd_mode;   // read or write
     int            fd_pos;    // current pos for R/W
-    struct inode*  fd_inode;  // pointer to i-node
+    struct inode*  fd_inode;  // pointer to i-node in i_node_table
 };
 
 // a wrapper for rw_sector to reduce the argument number
