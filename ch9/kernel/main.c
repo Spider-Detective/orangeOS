@@ -116,11 +116,10 @@ PUBLIC int get_ticks() {
  * in restart() and the handler: mov dword [tss + TSS3_S_SP0], eax)
  */
 void TestA() {
-    for (;;);
-    while (1) {
-        printf("<Ticks:%d>", get_ticks());
-        milli_delay(200);   // now each delay has 1 tick
-    }
+    int fd = open("/blah", O_CREAT);  // call function in lib/open.c
+    printf("fd: %d\n", fd);
+    close(fd);
+    spin("TestA");
 }
 
 // Another process B

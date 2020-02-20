@@ -31,6 +31,7 @@ struct super_block {
 
 #define SUPER_BLOCK_SIZE          56
 
+// stores 1 file's info in an inode
 struct inode {
     u32    i_mode;             // access mode
     u32    i_size;             // file size
@@ -59,7 +60,7 @@ struct dir_entry {
 struct file_desc {
     int            fd_mode;   // read or write
     int            fd_pos;    // current pos for R/W
-    struct inode*  fd_inode;  // pointer to i-node in i_node_table
+    struct inode*  fd_inode;  // pointer to inode in i_node_table
 };
 
 // a wrapper for rw_sector to reduce the argument number
