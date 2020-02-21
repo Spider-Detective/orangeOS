@@ -47,6 +47,20 @@ PUBLIC void task_fs() {
 
 // open the HD and initialize the file system
 PRIVATE void init_fs() {
+    int i;
+
+    // initialize tables as in Figure 9.12
+    for (i = 0; i < NR_FILE_DESC; i++) {
+        memset(&f_desc_table[i], 0, sizeof(struct file_desc));
+    }
+    for (i = 0; i < NR_INODE; i++) {
+        memset(&inode_table[i], 0, sizeof(struct inode));
+    }
+    struct super_block* sb = super_block;
+    for (; sb < &super_block[NR_SUPER_BLOCK]; sb++) {
+        sb->sb_dev = NO_DEV;
+    }
+
     MESSAGE driver_msg;
     driver_msg.type = DEV_OPEN;
     driver_msg.DEVICE = MINOR(ROOT_DEV);
@@ -54,6 +68,12 @@ PRIVATE void init_fs() {
     send_recv(BOTH, dd_map[MAJOR(ROOT_DEV)].driver_nr, &driver_msg);
 
     mkfs();
+
+    read_super_block(ROOT_DEV);
+    sb = get_super_block(ROOT_DEV);
+    assert(sb->magic == MAGIC_V1);
+
+    root_inode = get_inode(ROOT_DEV, ROOT_INODE);
 }
 
 // see Figure 9.6 for file system design

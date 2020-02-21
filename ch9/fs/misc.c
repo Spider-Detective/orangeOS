@@ -23,8 +23,34 @@ PUBLIC int search_file(char* path) {
  *      - filename: "blah"
  *      - *ppinode: root_inode
  *      - return 0 when success
+ * *ppinode will always point to the parent folder of filename 
+ * (here since only one folder, it will always be the root folder, root_inode)
+ * return 0 if success, otherwise -1
  */
 PUBLIC int strip_path(char* filename, const char* pathname, struct inode** ppinode) {
+    const char* s = pathname;
+    char* t = filename;
+
+    if (s == 0) {
+        return -1;
+    }
+    if (*s == '/') {
+        s++;
+    }
+
+    while (*s) {
+        if (*s == '/') {
+            return -1;
+        }
+        *t++ = *s++;
+        // truncate the filename if too long
+        if (t - filename >= MAX_FILENAME_LEN) {
+            break;
+        }
+    }
+    *t = 0;
+    *ppinode = root_inode;
+
     return 0;
 }
 
