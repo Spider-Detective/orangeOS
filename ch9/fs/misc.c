@@ -14,7 +14,44 @@
 #include "hd.h"
 
 // search the given file and return inode number
+// if failure, return 0
 PUBLIC int search_file(char* path) {
+    int i, j;
+
+    char filename[MAX_PATH];
+    memset(filename, 0, MAX_FILENAME_LEN);
+    struct inode* dir_inode;
+    if (strip_path(filename, path, &dir_inode) != 0) {
+        return 0;
+    }
+    if (filename[0] == 0) {  // the path is '/'
+        return dir_inode->i_num;
+    }
+
+    int dir_blk0_nr = dir_inode->i_start_sect;
+    int nr_dir_blks = (dir_inode->i_size + SECTOR_SIZE - 1) / SECTOR_SIZE;
+    int nr_dir_entries = dir_inode->i_size / DIR_ENTRY_SIZE;
+
+    // search the dir for the file
+    int m = 0;
+    struct dir_entry* pde;
+    for (i = 0; i < nr_dir_blks; i++) {
+        RD_SECT(dir_inode->i_dev, dir_blk0_nr + i);
+        pde = (struct dir_entry*)fsbuf;
+        for (j = 0; j < SECTOR_SIZE / DIR_ENTRY_SIZE; j++, pde++) {
+            if (memcmp(filename, pde->name, MAX_FILENAME_LEN) == 0) {
+                // if found the file, return its inode
+                return pde->inode_nr;
+            }
+            if (++m > nr_dir_entries) {
+                break;   // if out of the root directory range
+            }
+        }
+        if (m > nr_dir_entries) {
+            break;
+        }
+    }
+
     return 0;
 }
 

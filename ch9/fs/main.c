@@ -206,7 +206,33 @@ PUBLIC int rw_sector(int io_type, int dev, u64 pos, int bytes, int proc_nr, void
 
 // read super block from dev and write into a super_block data structure
 PRIVATE void read_super_block(int dev) {
+    int i;
+    MESSAGE driver_msg;
 
+    // get the driver info by syscall
+    driver_msg.type     = DEV_READ;
+    driver_msg.DEVICE   = MINOR(dev);
+    driver_msg.POSITION = SECTOR_SIZE * 1;
+    driver_msg.BUF      = fsbuf;
+    driver_msg.CNT      = SECTOR_SIZE;
+    driver_msg.PROC_NR  = TASK_FS;
+    assert(dd_map[MAJOR(dev)].driver_nr != INVALID_DRIVER);
+    send_recv(BOTH, dd_map[MAJOR(dev)].driver_nr, &driver_msg);
+
+    // find an empty slot in the super_block array
+    for (i = 0; i < NR_SUPER_BLOCK; i++) {
+        if (super_block[i].sb_dev == NO_DEV) {
+            break;
+        }
+    }
+    if (i == NR_SUPER_BLOCK) {
+        panic("super_block slots used up!");
+    }
+    assert(i == 0);
+
+    struct super_block* psb = (struct super_block*)fsbuf;
+    super_block[i] = *psb;
+    super_block[i].sb_dev = dev;
 }
 
 // get the super block from super_block array, according to given dev
@@ -225,7 +251,44 @@ PUBLIC struct super_block* get_super_block(int dev) {
 
 // get the inode pointer of given inode num
 PUBLIC struct inode* get_inode(int dev, int num) {
+    if (num == 0) {
+        return 0;
+    }
+    struct inode* p;
+    struct inode* q = 0;
+    for (p = &inode_table[0]; p < &inode_table[NR_INODE]; p++) {
+        if (p->i_cnt) {  // if the inode is not free
+            if ((p->i_dev == dev) && (p->i_num == num)) {
+                // this is the required inode
+                p->i_cnt++;
+                return p;
+            }
+        } else {
+            if (!q) {
+                q = p;    // assign current inode ptr to q
+            }
+        }
+    }
+    if (!q) {
+        panic("The inode table is full!");
+    }
+    q->i_dev = dev;
+    q->i_num = num;
+    q->i_cnt = 1;
 
+    struct super_block* sb = get_super_block(dev);
+    int blk_nr = 1 + 1 + sb->nr_imap_sects + sb->nr_smap_sects + 
+                 ((num - 1) / (SECTOR_SIZE / INODE_SIZE));
+    RD_SECT(dev, blk_nr);
+    struct inode* pinode = (struct inode*)((u8*)fsbuf + 
+                                           ((num - 1) % (SECTOR_SIZE / INODE_SIZE))
+                                           * INODE_SIZE);
+    q->i_mode = pinode->i_mode;
+    q->i_size = pinode->i_size;
+    q->i_start_sect = pinode->i_start_sect;
+    q->i_nr_sects = pinode->i_nr_sects;
+    
+    return q;
 }
 
 // decrease the reference number (i_cnt) of a given inode,
