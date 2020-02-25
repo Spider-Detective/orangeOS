@@ -1,6 +1,5 @@
 #include "type.h"
 #include "stdio.h"
-#include "config.h"
 #include "const.h"
 #include "protect.h"
 #include "string.h"
@@ -116,9 +115,38 @@ PUBLIC int get_ticks() {
  * in restart() and the handler: mov dword [tss + TSS3_S_SP0], eax)
  */
 void TestA() {
-    int fd = open("/blah", O_CREAT);  // call function in lib/open.c
-    printf("fd: %d\n", fd);
+    int fd;
+    int n;
+    const char filename[] = "blah";
+    const char bufw[] = "abcde";  // buffer to write
+    const int rd_bytes = 3;
+    char bufr[rd_bytes];          // buffer to read
+    assert(rd_bytes <= strlen(bufw));
+
+    // create file
+    fd = open(filename, O_CREAT | O_RDWR);  // call function in lib/open.c
+    assert(fd != -1);
+    printf("File created. fd: %d\n", fd);
+
+    // write file
+    n = write(fd, bufw, strlen(bufw));
+    assert(n == strlen(bufw));
     close(fd);
+
+    // open file
+    fd = open(filename, O_RDWR);
+    assert(fd != -1);
+    printf("File opened. fd: %d\n", fd);
+
+    // read file
+    n = read(fd, bufr, rd_bytes);
+    assert(n == rd_bytes);
+    bufr[n] = 0;
+    printf("%d bytes read: %s\n", n, bufr);
+
+    // close file
+    close(fd);
+
     spin("TestA");
 }
 

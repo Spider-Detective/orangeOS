@@ -74,6 +74,9 @@ PUBLIC struct super_block* get_super_block(int dev);
 PUBLIC int  do_open();
 PUBLIC int  do_close();
 
+/* fs/read_write.c */
+PUBLIC int  do_rdwt();
+
 /* fs/misc.c */
 PUBLIC int  do_stat();
 PUBLIC int  strip_path(char* filename, const char* pathname, struct inode** ppinode);

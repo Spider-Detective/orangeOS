@@ -29,10 +29,10 @@ OBJS                 = kernel/kernel.o lib/syscall.o kernel/start.o kernel/main.
                        kernel/systask.o kernel/hd.o\
 					   lib/printf.o lib/vsprintf.o\
 					   lib/klib.o lib/kliba.o lib/string.o lib/misc.o\
-					   lib/open.o lib/close.o\
-					   fs/main.o fs/open.o fs/misc.o
-							   
+					   lib/open.o lib/close.o lib/read.o lib/write.o\
+					   fs/main.o fs/open.o fs/misc.o fs/read_write.o
 DASMOUTPUT           = kernel.bin.asm
+
 FLOPPY               = /mnt/floppy/
 IMG                  = a.img
 
@@ -135,10 +135,19 @@ lib/open.o : lib/open.c
 lib/close.o : lib/close.c
 	$(CC) $(CFLAGS) -o $@ $<
 
+lib/read.o : lib/read.c
+	$(CC) $(CFLAGS) -o $@ $<
+
+lib/write.o : lib/write.c
+	$(CC) $(CFLAGS) -o $@ $<
+
 fs/main.o : fs/main.c
 	$(CC) $(CFLAGS) -o $@ $<
 
 fs/open.o : fs/open.c
+	$(CC) $(CFLAGS) -o $@ $<
+
+fs/read_write.o : fs/read_write.c
 	$(CC) $(CFLAGS) -o $@ $<
 
 fs/misc.o : fs/misc.c

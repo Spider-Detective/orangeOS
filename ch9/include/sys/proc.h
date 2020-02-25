@@ -44,8 +44,8 @@ struct proc {
     int p_sendto;
 
     int has_int_msg;
-    struct proc* q_sending;
-    struct proc* next_sending;
+    struct proc* q_sending;        // queue of procs wanting to send msg to this proc
+    struct proc* next_sending;     // next proc in the sending queue, linked list
 
     int nr_tty;
 
