@@ -1,5 +1,6 @@
 /*
  * Make variables in global.c does not have extern
+ * Include all global variables
  */
 
 #define GLOBAL_VARIABLES_HERE

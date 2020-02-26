@@ -105,6 +105,7 @@
 #define MAG_CH_PANIC    '\002'
 #define MAG_CH_ASSERT   '\003'
 
+// always add new syscall type here
 enum msgtype {
     HARD_INT = 1,
     GET_TICKS, GET_PID, // SYS task
