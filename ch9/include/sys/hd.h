@@ -48,6 +48,8 @@ struct part_ent {
 
 #define REG_DRV_ADDR   0x3F7
 
+#define MAX_IO_BYTES   256      // max sectors IO can handle
+
 // command register values
 struct hd_cmd {
     u8 features;

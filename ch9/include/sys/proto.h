@@ -82,6 +82,11 @@ PUBLIC int  do_stat();
 PUBLIC int  strip_path(char* filename, const char* pathname, struct inode** ppinode);
 PUBLIC int  search_file(char* path);
 
+/* fs/disklog.c */
+PUBLIC int  do_disklog();
+PUBLIC int  disklog(char* logstr);
+PUBLIC void dump_fd_graph(const char* fmt, ...);
+
 /* console.c */
 PUBLIC void out_char(CONSOLE* p_con, char ch);
 PUBLIC void scroll_screen(CONSOLE* p_con, int direction);

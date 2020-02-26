@@ -30,7 +30,9 @@ OBJS                 = kernel/kernel.o lib/syscall.o kernel/start.o kernel/main.
 					   lib/printf.o lib/vsprintf.o\
 					   lib/klib.o lib/kliba.o lib/string.o lib/misc.o\
 					   lib/open.o lib/close.o lib/read.o lib/write.o\
-					   fs/main.o fs/open.o fs/misc.o fs/read_write.o
+					   lib/getpid.o lib/syslog.o\
+					   fs/main.o fs/open.o fs/misc.o fs/read_write.o\
+					   fs/disklog.o
 DASMOUTPUT           = kernel.bin.asm
 
 FLOPPY               = /mnt/floppy/
@@ -141,6 +143,12 @@ lib/read.o : lib/read.c
 lib/write.o : lib/write.c
 	$(CC) $(CFLAGS) -o $@ $<
 
+lib/getpid.o : lib/getpid.c
+	$(CC) $(CFLAGS) -o $@ $<
+
+lib/syslog.o : lib/syslog.c
+	$(CC) $(CFLAGS) -o $@ $<
+
 fs/main.o : fs/main.c
 	$(CC) $(CFLAGS) -o $@ $<
 
@@ -151,4 +159,7 @@ fs/read_write.o : fs/read_write.c
 	$(CC) $(CFLAGS) -o $@ $<
 
 fs/misc.o : fs/misc.c
+	$(CC) $(CFLAGS) -o $@ $<
+
+fs/disklog.o : fs/disklog.c
 	$(CC) $(CFLAGS) -o $@ $<

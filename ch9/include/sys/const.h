@@ -107,7 +107,7 @@
 
 enum msgtype {
     HARD_INT = 1,
-    GET_TICKS,  // SYS task
+    GET_TICKS, GET_PID, // SYS task
 
     /* FS */
     OPEN, CLOSE, READ, WRITE, LSEEK, STAT, UNLINK,
@@ -119,7 +119,9 @@ enum msgtype {
     DEV_CLOSE,
     DEV_READ,
     DEV_WRITE,
-    DEV_IOCTL
+    DEV_IOCTL,
+
+    DISK_LOG  // debug
 };
 
 // message macros
@@ -135,6 +137,7 @@ enum msgtype {
 #define BUF             u.m3.m3p2
 #define OFFSET          u.m3.m3i2
 #define WHENCE          u.m3.m3i3
+#define PID             u.m3.m3i2
 
 #define RETVAL          u.m3.m3i1
 
@@ -184,9 +187,6 @@ enum msgtype {
 /* device numbers of hard disk */
 #define	MINOR_hd1a		0x10    // define the first as 16, see Figure 9.9
 #define	MINOR_hd2a		(MINOR_hd1a + NR_SUB_PER_PART)
-// #define	MINOR_hd2b		0x21
-// #define	MINOR_hd3a		0x30
-// #define	MINOR_hd4a		0x40
 
 #define	ROOT_DEV		MAKE_DEV(DEV_HD, MINOR_BOOT)	/* 3, 0x20 */
 
