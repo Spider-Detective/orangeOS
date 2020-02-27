@@ -6,8 +6,8 @@
 # To print out the dependency needed in Makefile for $filename$:
 # gcc -M $filename$ -I include
 
-# Entry point of orangeS: same value as KernelEntryPointPhyAddr in load.inc
-ENTRYPOINT           = 0x30400
+# Entry point of orangeS: same value as KRNL_ENT_PT_PHY_ADDR in load.inc
+ENTRYPOINT           = 0x1000
 # Offset of entry point in kernel
 ENTRYOFFSET          = 0x400
 

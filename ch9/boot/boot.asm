@@ -38,15 +38,15 @@ LABEL_SEARCH_IN_ROOT_DIR_BEGIN:
 		cmp     word [wRootDirSizeForLoop], 0               ; loop through all 14 sectors for root dir
 		jz      LABEL_NO_LOADERBIN
 		dec     word [wRootDirSizeForLoop]
-		mov     ax, BaseOfLoader
+		mov     ax, LOADER_SEG
 		mov     es, ax
-		mov     bx, OffsetOfLoader
+		mov     bx, LOADER_OFF
 		mov     ax, [wSectorNo]                             ; read start from sector 19
 		mov     cl, 1                                       ; read 1 sector
 		call    ReadSector
 
 		mov     si, LoaderFileName                          ; ds:si <- "LOADER  BIN"
-		mov     di, OffsetOfLoader                          ; es:di <- BaseOfLoader:0100
+		mov     di, LOADER_OFF                          ; es:di <- LOADER_SEG:0100
 		cld
 		mov     dx, 10h
 LABEL_SEARCH_FOR_LOADERBIN:
@@ -91,9 +91,9 @@ LABEL_FILENAME_FOUND:
 		push    cx                   ; save the # in FAT for current sector
 		add     cx, ax
 		add     cx, DeltaSectorNo
-		mov     ax, BaseOfLoader
+		mov     ax, LOADER_SEG
 		mov     es, ax
-		mov     bx, OffsetOfLoader
+		mov     bx, LOADER_OFF
 		mov     ax, cx
 LABEL_GOON_LOADING_FILE:
 		; add '.' each time reading a sector, Booting .....
@@ -123,7 +123,7 @@ LABEL_FILE_LOADED:
 		call    DispStr
 
 ;---------- Jump to loader.bin and execute, handle the control to loader ---------------
-		jmp     BaseOfLoader:OffsetOfLoader
+		jmp     LOADER_SEG:LOADER_OFF
 ;---------------------------------------------------------------------------------------
 
 ; --------------------------------------------------------
@@ -194,7 +194,7 @@ ReadSector:
 		ret
 
 ; find the FAT12 entry in sector numbered ax, and store the result in ax 
-; the sector of FAT is stored in es:bx, or actually BaseOfLoader:OffsetOfLoader
+; the sector of FAT is stored in es:bx, or actually LOADER_SEG:LOADER_OFF
 ;
 ; NOTICE: FAT is stored in Little Endian, need to revert the byte to have a correct read
 ; e.g. in the FAT example given in Page 107:
@@ -213,7 +213,7 @@ GetFATEntry:
 		push    es
 		push    bx
 		push    ax
-		mov     ax, BaseOfLoader
+		mov     ax, LOADER_SEG
 		sub     ax, 0100h          ; leave 4k space for FAT
 		mov     es, ax
 		pop     ax

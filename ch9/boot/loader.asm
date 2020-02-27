@@ -18,7 +18,7 @@ LABEL_DESC_VIDEO:      Descriptor       0B8000h,            0ffffh, DA_DRW|DA_DP
 
 GdtLen          equ     $ - LABEL_GDT
 GdtPtr          dw      GdtLen - 1
-                dd      BaseOfLoaderPhyAddr + LABEL_GDT
+                dd      LOADER_PHY_ADDR + LABEL_GDT
 
 ; selectors
 SelectorFlatC             equ LABEL_DESC_FLAT_C      - LABEL_GDT
@@ -67,15 +67,15 @@ LABEL_SEARCH_IN_ROOT_DIR_BEGIN:
 		cmp     word [wRootDirSizeForLoop], 0               ; loop through all 14 sectors for root dir
 		jz      LABEL_NO_KERNELBIN
 		dec     word [wRootDirSizeForLoop]
-		mov     ax, BaseOfKernelFile
+		mov     ax, KERNEL_FILE_SEG
 		mov     es, ax
-		mov     bx, OffsetOfKernelFile
+		mov     bx, KERNEL_FILE_OFF
 		mov     ax, [wSectorNo]                             ; read start from sector 19
 		mov     cl, 1                                       ; read 1 sector
 		call    ReadSector
 
 		mov     si, KernelFileName                          ; ds:si <- "LOADER  BIN"
-		mov     di, OffsetOfKernelFile                      ; es:di <- BaseOfLoader:0100
+		mov     di, KERNEL_FILE_OFF                      ; es:di <- LOADER_SEG:0100
 		cld
 		mov     dx, 10h
 LABEL_SEARCH_FOR_KERNELBIN:
@@ -127,9 +127,9 @@ LABEL_FILENAME_FOUND:
 		push    cx                   ; save the # in FAT for current sector
 		add     cx, ax
 		add     cx, DeltaSectorNo
-		mov     ax, BaseOfKernelFile
+		mov     ax, KERNEL_FILE_SEG
 		mov     es, ax
-		mov     bx, OffsetOfKernelFile
+		mov     bx, KERNEL_FILE_OFF
 		mov     ax, cx
 LABEL_GOON_LOADING_FILE:
 		; add '.' each time reading a sector, Loading .....
@@ -153,9 +153,28 @@ LABEL_GOON_LOADING_FILE:
 		add     ax, dx              ; convert the sector # read from FAT to actual # in disk:
 		add     ax, DeltaSectorNo   ; sector # + RootDirSecotrs (14) + (starting # of root dir (19) - 2) 
 		add     bx, [BPB_BytsPerSec]; increase 512 to move to the next sector
+		jc      .1                  ; if bx becomes 0 again, it means the kernel is larger than 64KB
+		jmp     .2
+.1:     ; es += 0x1000 pointing to the next seg
+		push    ax                  
+		mov     ax, es
+		add     ax, 1000h
+		mov     es, ax
+		pop     ax
+.2:
 		jmp     LABEL_GOON_LOADING_FILE
 LABEL_FILE_LOADED:
         call    KillMotor
+
+		; load the HD sector to 0500h in memory
+		xor     ax, ax
+		mov     es, ax        
+		mov     ax, 0201h     ; AL: number of sectors to read
+		mov     cx, 1         ; CH: low 8bits of cylinder number
+		                      ; CL: sector number (bits 0-5), high two bits of cylinder (bits 6-7)
+		mov     dx, 80h       ; DH: head number, DL: drive number
+		mov     bx, 500h      ; ES:BX, data buffer
+		int     13h
 
 		mov     dh, 1          ; print "Ready."
 		call    DispStrRealMode
@@ -177,7 +196,7 @@ LABEL_FILE_LOADED:
         or      eax, 1
         mov     cr0, eax
 
-        jmp     dword SelectorFlatC:(BaseOfLoaderPhyAddr+LABEL_PM_START)
+        jmp     dword SelectorFlatC:(LOADER_PHY_ADDR+LABEL_PM_START)
         
         jmp     $
 
@@ -251,7 +270,7 @@ ReadSector:
 		ret
 
 ; find the FAT12 entry in sector numbered ax, and store the result in ax 
-; the sector of FAT is stored in es:bx, or actually BaseOfLoader:OffsetOfLoader
+; the sector of FAT is stored in es:bx, or actually LOADER_SEG:LOADER_OFF
 ;
 ; NOTICE: FAT is stored in Little Endian, need to revert the byte to have a correct read
 ; e.g. in the FAT example given in Page 107:
@@ -270,7 +289,7 @@ GetFATEntry:
 		push    es
 		push    bx
 		push    ax
-		mov     ax, BaseOfKernelFile
+		mov     ax, KERNEL_FILE_SEG
 		sub     ax, 0100h          ; leave 4k space for FAT
 		mov     es, ax
 		pop     ax
@@ -345,14 +364,24 @@ LABEL_PM_START:
 
 		call    initKernel
 
-        jmp     SelectorFlatC:KernelEntryPointPhyAddr
+		; see Figure 9.19 for memory map
+		mov     dword [BOOT_PARAM_ADDR], BOOT_PARAM_MAGIC   ; BootParam[0] = BootParamMagic
+		mov     eax, [dwMemSize]
+		mov     [BOOT_PARAM_ADDR + 4], eax                  ; BootParam[1] = MemSize
+		mov     eax, KERNEL_FILE_SEG
+		shl     eax, 4
+		add     eax, KERNEL_FILE_OFF
+		mov     [BOOT_PARAM_ADDR + 8], eax                  ; BootParam[2] = KernelFilePhyAddr
+
+        jmp     SelectorFlatC:KRNL_ENT_PT_PHY_ADDR
 ; after the above jmp, the memory is used as: (see Figure 5.8)
 ; 0-500h: reserved by BIOS
-; 500h-9FC00h: free to use:
+; 500h-1000h: keep free
+; 1000h-9FC00h: free to use:
 ;			  7C00h-7E00h: used for boot.bin, first booting sector
 ;             90000h-9FBFFh: used for loader.bin
-;             80000h-8FFFFh: used for kernel.bin
-;             30000h-7FFFFh: used for kernel.bin after loaded, entry addr: 30400h
+;             70000h-8FFFFh: used for kernel.bin
+;             1000h-6FFFFh: used for kernel after loaded, entry addr: 1000h
 ; 9FC00h-100000h: reserved by hardware
 ; >100000h: free to use: used for page dir and tables
 
@@ -427,9 +456,9 @@ SetupPaging:
 		; initiate page directory
 		mov     ax, SelectorFlatRW         
 		mov     es, ax
-		mov     edi, PageDirBase         ; base address is PageDirBase0
+		mov     edi, PAGE_DIR_BASE         ; base address is PageDirBase0
 		xor     eax, eax
-		mov     eax, PageTblBase | PG_P | PG_USU | PG_RWW
+		mov     eax, PAGE_TBL_BASE | PG_P | PG_USU | PG_RWW
 .1:
 		stosd                      ; move edi by 4 each time, initialize one PDE
 		add		eax, 4096          ; for simplicity, all page tables are continuous in memory
@@ -441,7 +470,7 @@ SetupPaging:
 		mov     ebx, 1024           ; 1024 page table entries for each page table
 		mul     ebx
 		mov     ecx, eax            ; PTE No. = Page table No. * 1024
-		mov     edi, PageTblBase    ; base address is PageTblBase0
+		mov     edi, PAGE_TBL_BASE    ; base address is PageTblBase0
 		xor     eax, eax
 		mov     eax, PG_P | PG_USU | PG_RWW
 .2:
@@ -450,7 +479,7 @@ SetupPaging:
 		loop    .2
 
 		; start paging mechanism
-		mov     eax, PageDirBase
+		mov     eax, PAGE_DIR_BASE
 		mov     cr3, eax        ; give the PD base address to cr3
 		mov     eax, cr0
 		or      eax, 80000000h
@@ -463,13 +492,13 @@ SetupPaging:
 ; finished starting paging mechanism --------------------------------------
 
 ; move the kernel.bin into the virtual address specified by ELF:
-; Check the Program Header in ELF, memcpy(p_vaddr, BaseOfKernelFilePhyAddr + p_offset, p_filesz)
+; Check the Program Header in ELF, memcpy(p_vaddr, KERNEL_FILE_PHY_ADDR + p_offset, p_filesz)
 initKernel:
 		xor     esi, esi
-		mov     cx, word [BaseOfKernelFilePhyAddr+2Ch]   ; get e_phnum, number of program header
+		mov     cx, word [KERNEL_FILE_PHY_ADDR+2Ch]   ; get e_phnum, number of program header
 		movzx   ecx, cx
-		mov     esi, [BaseOfKernelFilePhyAddr+1Ch]       ; get e_phoff, offset w.r.t. ELF start
-		add     esi, BaseOfKernelFilePhyAddr             ; reach the start of 1st program header
+		mov     esi, [KERNEL_FILE_PHY_ADDR+1Ch]       ; get e_phoff, offset w.r.t. ELF start
+		add     esi, KERNEL_FILE_PHY_ADDR             ; reach the start of 1st program header
 .Begin:
 		mov     eax, [esi + 0]
 		cmp     eax, 0                    ; file type is PT_NULL, stop
@@ -478,7 +507,7 @@ initKernel:
 		; push the arguments for use of memcpy
 		push    dword [esi + 010h]      ; p_filesz
 	    mov     eax, [esi + 04h]        ; p_offset
-		add     eax, BaseOfKernelFilePhyAddr
+		add     eax, KERNEL_FILE_PHY_ADDR
 		push    eax
 		push    dword [esi + 08h]       ; p_vaddr
 		call    MemCpy
@@ -514,21 +543,21 @@ _ARDStruct:              ; Address Range Descriptor Structure
 _MemChkBuf:    times   256      db        0
 
 ; used in protect mode (need to offset from seg base addr):
-szMemChkTitle            equ     BaseOfLoaderPhyAddr + _szMemChkTitle   
-szRAMSize                equ     BaseOfLoaderPhyAddr + _szRAMSize       
-szReturn                 equ     BaseOfLoaderPhyAddr + _szReturn      
-dwDispPos                equ     BaseOfLoaderPhyAddr + _dwDispPos       
-dwMemSize                equ     BaseOfLoaderPhyAddr + _dwMemSize       
-dwMCRNumer               equ     BaseOfLoaderPhyAddr + _dwMCRNumber     
-ARDStruct                equ     BaseOfLoaderPhyAddr + _ARDStruct       
-		dwBaseAddrLow    equ     BaseOfLoaderPhyAddr + _dwBaseAddrLow   
-		dwBaseAddrHigh   equ     BaseOfLoaderPhyAddr + _dwBaseAddrHigh  
-		dwLengthLow      equ     BaseOfLoaderPhyAddr + _dwLengthLow     
-		dwLengthHigh     equ     BaseOfLoaderPhyAddr + _dwLengthHigh    
-		dwType           equ     BaseOfLoaderPhyAddr + _dwType          
-MemChkBuf                equ     BaseOfLoaderPhyAddr + _MemChkBuf       
+szMemChkTitle            equ     LOADER_PHY_ADDR + _szMemChkTitle   
+szRAMSize                equ     LOADER_PHY_ADDR + _szRAMSize       
+szReturn                 equ     LOADER_PHY_ADDR + _szReturn      
+dwDispPos                equ     LOADER_PHY_ADDR + _dwDispPos       
+dwMemSize                equ     LOADER_PHY_ADDR + _dwMemSize       
+dwMCRNumer               equ     LOADER_PHY_ADDR + _dwMCRNumber     
+ARDStruct                equ     LOADER_PHY_ADDR + _ARDStruct       
+		dwBaseAddrLow    equ     LOADER_PHY_ADDR + _dwBaseAddrLow   
+		dwBaseAddrHigh   equ     LOADER_PHY_ADDR + _dwBaseAddrHigh  
+		dwLengthLow      equ     LOADER_PHY_ADDR + _dwLengthLow     
+		dwLengthHigh     equ     LOADER_PHY_ADDR + _dwLengthHigh    
+		dwType           equ     LOADER_PHY_ADDR + _dwType          
+MemChkBuf                equ     LOADER_PHY_ADDR + _MemChkBuf       
 
 ; setup the stack
 StackSpace:     times    1000h   db      0
-TopOfStack:	    equ	     BaseOfLoaderPhyAddr + $
+TopOfStack:	    equ	     LOADER_PHY_ADDR + $
 ; END of [SECTION .data1]
