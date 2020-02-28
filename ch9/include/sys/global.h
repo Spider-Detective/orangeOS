@@ -13,7 +13,9 @@ EXTERN  u8                  idt_ptr[6];       /* 0~15:Limit, 16~47:Base */
 EXTERN  struct gate         idt[IDT_SIZE];
 
 EXTERN  u32          k_reenter;
-EXTERN  int          nr_current_console; // the number of current active console
+EXTERN  int          current_console; // the number of current active console
+
+EXTERN  int          key_pressed;     // wake up TASK_TTY for clock_handler
 
 EXTERN  struct tss          tss;
 EXTERN  struct proc*        p_proc_ready;

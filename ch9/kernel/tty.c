@@ -14,59 +14,91 @@
 #define TTY_FIRST       (tty_table)
 #define TTY_END         (tty_table + NR_CONSOLES)
 
-PRIVATE void init_tty(TTY* p_tty);
-PRIVATE void tty_do_read(TTY* p_tty);
-PRIVATE void tty_do_write(TTY* p_tty);
-PRIVATE void put_key(TTY* p_tty, u32 key);
+PRIVATE void init_tty(TTY* tty);
+PRIVATE void tty_dev_read(TTY* tty);
+PRIVATE void tty_dev_write(TTY* tty);
+PRIVATE void tty_do_read(TTY* tty, MESSAGE* msg);
+PRIVATE void tty_do_write(TTY* tty, MESSAGE* msg);
+PRIVATE void put_key(TTY* tty, u32 key);
 
 // loop over all consoles and do write and read if necessary
 PUBLIC void task_tty() {
-    TTY*    p_tty;
+    TTY*     tty;
+    MESSAGE  msg;
 
     init_keyboard();
-    for (p_tty = TTY_FIRST; p_tty < TTY_END; p_tty++) {
-        init_tty(p_tty);
+    for (tty = TTY_FIRST; tty < TTY_END; tty++) {
+        init_tty(tty);
     }
     select_console(0);
     while (1) {
-        for (p_tty = TTY_FIRST; p_tty < TTY_END; p_tty++) {
-            tty_do_read(p_tty);
-            tty_do_write(p_tty); 
+        for (tty = TTY_FIRST; tty < TTY_END; tty++) {
+            do {
+                tty_dev_read(tty);
+                tty_dev_write(tty);
+            } while (tty->ibuf_cnt);
         }
+
+        send_recv(RECEIVE, ANY, &msg);
+
+        int src = msg.source;
+        assert(src != TASK_TTY);
+
+        TTY* ptty = &tty_table[msg.DEVICE];
+
+        switch(msg.type) {
+            case DEV_OPEN:
+                reset_msg(&msg);
+                msg.type = SYSCALL_RET;
+                send_recv(SEND, src, &msg);
+                break;
+            case DEV_READ:
+                tty_do_read(ptty, &msg);
+                break;
+            case DEV_WRITE:
+                tty_do_write(ptty, &msg); 
+                break;
+            case HARD_INT:
+                // triggered by clock handler for key pressed
+                key_pressed = 0;
+                continue;
+            default:
+                dump_msg("TTY::unknown msg", &msg);
+                break;
+        }
+
     }
 }
 
 // init the circular buffer and console in tty struct
-PRIVATE void init_tty(TTY* p_tty) {
-    p_tty->inbuf_count = 0;
-    p_tty->p_inbuf_head = p_tty->p_inbuf_tail = p_tty->in_buf;
+PRIVATE void init_tty(TTY* tty) {
+    tty->ibuf_cnt = 0;
+    tty->ibuf_head = tty->ibuf_tail = tty->ibuf;
 
-    init_screen(p_tty);
+    init_screen(tty);
 }
 
-PUBLIC void in_process(TTY* p_tty, u32 key) {
-    char output[2] = {'\0', '\0'};
-
+PUBLIC void in_process(TTY* tty, u32 key) {
     if (!(key & FLAG_EXT)) {   // FLAG_EXT means it is not a printable char
-        put_key(p_tty, key);
+        put_key(tty, key);
     } else {
         int raw_code = key & MASK_RAW;  // remove the non-functional key flags
         switch(raw_code) {
             case ENTER:
-                put_key(p_tty, '\n');
+                put_key(tty, '\n');
                 break;
             case BACKSPACE:
-                put_key(p_tty, '\b');
+                put_key(tty, '\b');
                 break;
             case UP:
                 if ((key & FLAG_SHIFT_L) || (key & FLAG_SHIFT_R)) {
                     // scroll DOWN the console by one line
-                    scroll_screen(p_tty->p_console, SCR_DN);
+                    scroll_screen(tty->console, SCR_DN);
                 }
                 break;
             case DOWN:
                 if ((key & FLAG_SHIFT_L) || (key & FLAG_SHIFT_R)) {
-                    scroll_screen(p_tty->p_console, SCR_UP);
+                    scroll_screen(tty->console, SCR_UP);
                 }
                 break;
             case F1:
@@ -81,15 +113,17 @@ PUBLIC void in_process(TTY* p_tty, u32 key) {
             case F10:
             case F11:
             case F12:
+                // to shift between consoles on Mac, use fn + control + F1/F2/F3
                 if ((key & FLAG_CTRL_L) || (key & FLAG_CTRL_R)) {
                     select_console(raw_code - F1);
-                } else {
-                    if (raw_code == F12) {
-                        disable_int();
-                        dump_proc(proc_table + 4);
-                        for (;;);
-                    }
-                }
+                } 
+                // else {
+                //     if (raw_code == F12) {
+                //         disable_int();
+                //         dump_proc(proc_table + 4);
+                //         for (;;);
+                //     }
+                // }
                 break;
             default:
                 break;
@@ -98,46 +132,92 @@ PUBLIC void in_process(TTY* p_tty, u32 key) {
 }
 
 // write the char into the circular buffer of tty for reading
-PRIVATE void put_key(TTY* p_tty, u32 key) {
-    if (p_tty->inbuf_count < TTY_IN_BYTES) {
-        *(p_tty->p_inbuf_head) = key;
-        p_tty->p_inbuf_head++;
-        if (p_tty->p_inbuf_head == p_tty->in_buf + TTY_IN_BYTES) {
-            p_tty->p_inbuf_head = p_tty->in_buf;
+PRIVATE void put_key(TTY* tty, u32 key) {
+    if (tty->ibuf_cnt < TTY_IN_BYTES) {
+        *(tty->ibuf_head) = key;
+        tty->ibuf_head++;
+        if (tty->ibuf_head == tty->ibuf + TTY_IN_BYTES) {
+            tty->ibuf_head = tty->ibuf;
         }
-        p_tty->inbuf_count++;
+        tty->ibuf_cnt++;
+    }
+}
+
+// get input from keyboard of current console
+PRIVATE void tty_dev_read(TTY* tty) {
+    if (is_current_console(tty->console)) {
+        keyboard_read(tty);
+    }
+}
+
+// echo the input chars and send it to the waiting process
+PRIVATE void tty_dev_write(TTY* tty) {
+    while (tty->ibuf_cnt) {
+        char ch = *(tty->ibuf_tail);
+        tty->ibuf_tail++;
+        if (tty->ibuf_tail == tty->ibuf + TTY_IN_BYTES) {
+            tty->ibuf_tail = tty->ibuf;
+        }
+        tty->ibuf_cnt--;
+
+        if (tty->tty_left_cnt) {
+            if (ch >= ' ' && ch <= '~') {  // if printable
+                out_char(tty->console, ch);
+                void* p = tty->tty_req_buf + tty->tty_trans_cnt;
+                phys_copy(p, (void*)va2la(TASK_TTY, &ch), 1);
+                tty->tty_trans_cnt++;
+                tty->tty_left_cnt--;
+            } else if (ch == '\b' && tty->tty_trans_cnt) {
+                out_char(tty->console, ch);
+                tty->tty_trans_cnt--;
+                tty->tty_left_cnt++;
+            }
+
+            if (ch == '\n' || tty->tty_left_cnt == 0) {
+                out_char(tty->console, '\n');
+                MESSAGE msg;
+                msg.type = RESUME_PROC;
+                msg.PROC_NR = tty->tty_procnr;
+                msg.CNT = tty->tty_trans_cnt;
+                send_recv(SEND, tty->tty_caller, &msg);
+                tty->tty_left_cnt = 0;
+            }
+        }
     }
 }
 
 // only read when the console is current active console
-PRIVATE void tty_do_read(TTY* p_tty) {
-    if (is_current_console(p_tty->p_console)) {
-        keyboard_read(p_tty);
-    }
+// send msg to process
+PRIVATE void tty_do_read(TTY* tty, MESSAGE* msg) {
+    // update tty, see def in tty,h
+    tty->tty_caller = msg->source;
+    tty->tty_procnr = msg->PROC_NR;
+    tty->tty_req_buf = va2la(tty->tty_procnr, msg->BUF);
+    tty->tty_left_cnt = msg->CNT;
+    tty->tty_trans_cnt = 0;
+
+    msg->type = SUSPEND_PROC;
+    msg->CNT = tty->tty_left_cnt;
+    send_recv(SEND, tty->tty_caller, msg);
 }
 
-PRIVATE void tty_do_write(TTY* p_tty) {
-    if (p_tty->inbuf_count) {
-        char ch = *(p_tty->p_inbuf_tail);
-        p_tty->p_inbuf_tail++;
-        if (p_tty->p_inbuf_tail == p_tty->in_buf + TTY_IN_BYTES) {
-            p_tty->p_inbuf_tail = p_tty->in_buf;
-        }
-        p_tty->inbuf_count--;
-
-        out_char(p_tty->p_console, ch);
-    }
-}
-
-// write the buf into console of tty
-PUBLIC void tty_write(TTY* p_tty, char* buf, int len) {
-    char* p = buf;
-    int i = len;
+PRIVATE void tty_do_write(TTY* tty, MESSAGE* msg) {
+    char buf[TTY_OUT_BUF_LEN];
+    char* p = (char*)va2la(msg->PROC_NR, msg->BUF);
+    int i = msg->CNT;
+    int j;
 
     while (i) {
-        out_char(p_tty->p_console, *p++);
-        i--;
+        int bytes = min(TTY_OUT_BUF_LEN, i);
+        phys_copy(va2la(TASK_TTY, buf), (void*)p, bytes);
+        for (j = 0; j < bytes; j++) {
+            out_char(tty->console, buf[j]);
+        }
+        i -= bytes;
+        p += bytes;
     }
+    msg->type = SYSCALL_RET;
+    send_recv(SEND, msg->source, msg);
 }
 
 PUBLIC int sys_printx(int _unused1, int _unused2, char* s, struct proc* p_proc) {
@@ -175,7 +255,7 @@ PUBLIC int sys_printx(int _unused1, int _unused2, char* s, struct proc* p_proc) 
             // if q reaches the end, turn the existing char on screen to be gray
             // in 16 lines, then rollback q to the beginning of p
             if (!*q) {  
-                while (((int)v - V_MEM_BASE) % (SCREEN_WIDTH * 16)) {
+                while (((int)v - V_MEM_BASE) % (SCR_WIDTH * 16)) {
                     v++;
                     *v++ = GRAY_CHAR;
                 }
@@ -193,8 +273,33 @@ PUBLIC int sys_printx(int _unused1, int _unused2, char* s, struct proc* p_proc) 
         if (ch == MAG_CH_PANIC || ch == MAG_CH_ASSERT) {
             continue;      // skip the magic char
         }
-        out_char(tty_table[p_proc->nr_tty].p_console, ch);
+        out_char(TTY_FIRST->console, ch);
     }
 
     return 0;
+}
+
+PUBLIC void dump_tty_buf() {
+    TTY* tty = &tty_table[1];
+
+    static char sep[] = "--------------------------------\n";
+
+	printl(sep);
+
+	printl("head: %d\n", tty->ibuf_head - tty->ibuf);
+	printl("tail: %d\n", tty->ibuf_tail - tty->ibuf);
+	printl("cnt: %d\n", tty->ibuf_cnt);
+
+	int pid = tty->tty_caller;
+	printl("caller: %s (%d)\n", proc_table[pid].name, pid);
+	pid = tty->tty_procnr;
+	printl("caller: %s (%d)\n", proc_table[pid].name, pid);
+
+	printl("req_buf: %d\n", (int)tty->tty_req_buf);
+	printl("left_cnt: %d\n", tty->tty_left_cnt);
+	printl("trans_cnt: %d\n", tty->tty_trans_cnt);
+
+	printl("--------------------------------\n");
+
+	strcpy(sep, "\n");
 }

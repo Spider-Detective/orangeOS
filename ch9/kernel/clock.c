@@ -16,8 +16,17 @@
  * by changing the esp pointer pointing each process table in turn
  */
 PUBLIC void clock_handler(int irq) {
-    ticks++;
-    p_proc_ready->ticks--;
+    if (++ticks >= MAX_TICKS) {
+        ticks = 0;
+    }
+    
+    if (p_proc_ready->ticks) {
+        p_proc_ready->ticks--;
+    }
+
+    if (key_pressed) {
+        inform_int(TASK_TTY);
+    }
 
     if (k_reenter != 0) {
         return;

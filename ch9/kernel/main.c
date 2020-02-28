@@ -64,7 +64,7 @@ PUBLIC int kernel_main() {
         p_proc->regs.esp = (u32)p_task_stack;
         p_proc->regs.eflags = eflags;
 
-        p_proc->nr_tty = 0;    
+        // p_proc->nr_tty = 0;    
 
         p_proc->p_flags = 0;
         p_proc->p_msg   = 0;
@@ -73,6 +73,9 @@ PUBLIC int kernel_main() {
         p_proc->has_int_msg  = 0;
         p_proc->q_sending    = 0;
         p_proc->next_sending = 0;
+        for (int j = 0; j < NR_FILES; j++) {
+            p_proc->filp[j] = 0;
+        }
         p_proc->ticks = p_proc->priority = prio;
 
         p_task_stack -= p_task->stacksize;
@@ -81,9 +84,9 @@ PUBLIC int kernel_main() {
         selector_ldt += 1 << 3;
     }
     
-    proc_table[NR_TASKS + 0].nr_tty = 0;   // console output will be on console #0
-    proc_table[NR_TASKS + 1].nr_tty = 1;
-    proc_table[NR_TASKS + 2].nr_tty = 1;
+    // proc_table[NR_TASKS + 0].nr_tty = 0;   // console output will be on console #0
+    // proc_table[NR_TASKS + 1].nr_tty = 1;
+    // proc_table[NR_TASKS + 2].nr_tty = 1;
 
     k_reenter = 0;
     ticks = 0;
@@ -117,7 +120,7 @@ PUBLIC int get_ticks() {
 void TestA() {
     int fd;
     int i, n;
-    const char filename[] = "blah";
+    char filename[MAX_FILENAME_LEN + 1] = "blah";
     const char bufw[] = "abcde";  // buffer to write
     const int rd_bytes = 3;
     char bufr[rd_bytes];          // buffer to read
@@ -126,7 +129,7 @@ void TestA() {
     // create file
     fd = open(filename, O_CREAT | O_RDWR);  // call function in lib/open.c
     assert(fd != -1);
-    printf("File created. fd: %d\n", fd);
+    printf("File created: %s (fd %d)\n", filename, fd);
 
     // write file
     n = write(fd, bufw, strlen(bufw));
@@ -170,13 +173,35 @@ void TestA() {
 
 // Another process B
 void TestB() {
+    char tty_name[] = "/dev_tty1";
+    int fd_stdin = open(tty_name, O_RDWR);
+    assert(fd_stdin == 0);
+    int fd_stdout = open(tty_name, O_RDWR);
+    assert(fd_stdout == 1);
+
+    char rdbuf[128];   // read buffer
+
     while(1) {
-        printf("B");
-        milli_delay(200);
+        write(fd_stdout, "$ ", 2);
+        int r = read(fd_stdin, rdbuf, 70);
+        rdbuf[r] = 0;
+
+        if (strcmp(rdbuf, "hello") == 0) {
+            write(fd_stdout, "hello world!\n", 13);
+        } else {
+            if (rdbuf[0]) {
+                write(fd_stdout, "{", 1);
+                write(fd_stdout, rdbuf, r);
+                write(fd_stdout, "}\n", 2); 
+            }
+        }
     }
+
+    assert(0);
 }
 
 void TestC() {
+    spin("TestC");
     // assert(0);
     while(1) {
         printf("C");
