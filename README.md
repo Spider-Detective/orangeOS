@@ -59,3 +59,5 @@ ata0-master: type=disk, path="80m.img", mode=flat
 3. To partition the HD:	
   * ```/sbin/fdisk -c=dos -u=cylinders 80m.img```	
   * Then partition the HD in fdisk command line, refer to https://www.geeksforgeeks.org/fdisk-command-in-linux-with-examples/
+
+4. On Mac's virtual machine, use <kbd>fn</kbd> + <kbd>control</kbd> + (<kbd>F1</kbd> or <kbd>F2</kbd> or <kbd>F3</kbd>) to shift among different consoles.
