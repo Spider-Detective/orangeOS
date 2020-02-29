@@ -23,15 +23,29 @@ bits 32
 ;         ret
 
 printx:
+		push    edx
+
         mov     eax, _NR_printx
-        mov     ebx, [esp + 4]          
+        mov     edx, [esp + 4 + 4]          
         int     INT_VECTOR_SYS_CALL
+
+		pop     edx
+
         ret
 
 sendrec:
+		push    ebx
+		push    ecx
+		push    edx
+
         mov     eax, _NR_sendrec
-        mov     ebx, [esp + 4]          ; function
-        mov     ecx, [esp + 8]          ; src_dest
-        mov     edx, [esp + 12]         ; p_msg
+        mov     ebx, [esp + 12 + 4]          ; function
+        mov     ecx, [esp + 12 + 8]          ; src_dest
+        mov     edx, [esp + 12 + 12]         ; p_msg
         int     INT_VECTOR_SYS_CALL
+
+		pop     edx
+		pop     ecx
+		pop     ebx
+
         ret

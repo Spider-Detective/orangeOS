@@ -160,6 +160,7 @@ PRIVATE void tty_dev_write(TTY* tty) {
         }
         tty->ibuf_cnt--;
 
+        // if there is still chars needed to write
         if (tty->tty_left_cnt) {
             if (ch >= ' ' && ch <= '~') {  // if printable
                 out_char(tty->console, ch);
@@ -167,12 +168,14 @@ PRIVATE void tty_dev_write(TTY* tty) {
                 phys_copy(p, (void*)va2la(TASK_TTY, &ch), 1);
                 tty->tty_trans_cnt++;
                 tty->tty_left_cnt--;
+            // if backspace, remove the last char
             } else if (ch == '\b' && tty->tty_trans_cnt) {
                 out_char(tty->console, ch);
                 tty->tty_trans_cnt--;
                 tty->tty_left_cnt++;
             }
 
+            // if pressed enter or no more char left, finish writing and send msg to fs
             if (ch == '\n' || tty->tty_left_cnt == 0) {
                 out_char(tty->console, '\n');
                 MESSAGE msg;
@@ -186,8 +189,11 @@ PRIVATE void tty_dev_write(TTY* tty) {
     }
 }
 
-// only read when the console is current active console
-// send msg to process
+/* simply read the msg info and set into tty
+ * then send FS SUSPEND_PROC immediately to suspend the process
+ * the subsequent reading will be handled by tty_dev_read and tty_dev_write 
+ * in while loop of task_tty
+ */ 
 PRIVATE void tty_do_read(TTY* tty, MESSAGE* msg) {
     // update tty, see def in tty,h
     tty->tty_caller = msg->source;
@@ -201,6 +207,7 @@ PRIVATE void tty_do_read(TTY* tty, MESSAGE* msg) {
     send_recv(SEND, tty->tty_caller, msg);
 }
 
+// simply write the chars in msg.BUF to console
 PRIVATE void tty_do_write(TTY* tty, MESSAGE* msg) {
     char buf[TTY_OUT_BUF_LEN];
     char* p = (char*)va2la(msg->PROC_NR, msg->BUF);

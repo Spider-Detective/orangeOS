@@ -129,7 +129,7 @@ void TestA() {
     // create file
     fd = open(filename, O_CREAT | O_RDWR);  // call function in lib/open.c
     assert(fd != -1);
-    printf("File created: %s (fd %d)\n", filename, fd);
+    printl("File created: %s (fd %d)\n", filename, fd);
 
     // write file
     n = write(fd, bufw, strlen(bufw));
@@ -139,13 +139,13 @@ void TestA() {
     // open file
     fd = open(filename, O_RDWR);
     assert(fd != -1);
-    printf("File opened. fd: %d\n", fd);
+    printl("File opened. fd: %d\n", fd);
 
     // read file
     n = read(fd, bufr, rd_bytes);
     assert(n == rd_bytes);
     bufr[n] = 0;
-    printf("%d bytes read: %s\n", n, bufr);
+    printl("%d bytes read: %s\n", n, bufr);
 
     // close file
     close(fd);
@@ -155,16 +155,16 @@ void TestA() {
     for (i = 0; i < sizeof(filenames) / sizeof(filenames[0]); i++) {
         fd = open(filenames[i], O_CREAT | O_RDWR);
         assert(fd != -1);
-        printf("File created: %s (fd %d)\n", filenames[i], fd);
+        printl("File created: %s (fd %d)\n", filenames[i], fd);
         close(fd);
     }
 
     char* rfilenames[] = {"/bar", "/foo", "/baz", "/dev_tty0"};
     for (i = 0; i < sizeof(rfilenames) / sizeof(rfilenames[0]); i++) {
         if (unlink(rfilenames[i]) == 0) {
-            printf("File removed: %s\n", rfilenames[i]);
+            printl("File removed: %s\n", rfilenames[i]);
         } else {
-            printf("Failed to remove file: %s\n", rfilenames[i]);
+            printl("Failed to remove file: %s\n", rfilenames[i]);
         }
     }
 
@@ -182,17 +182,15 @@ void TestB() {
     char rdbuf[128];   // read buffer
 
     while(1) {
-        write(fd_stdout, "$ ", 2);
+        printf("$ ");
         int r = read(fd_stdin, rdbuf, 70);
         rdbuf[r] = 0;
 
         if (strcmp(rdbuf, "hello") == 0) {
-            write(fd_stdout, "hello world!\n", 13);
+            printf("hello world!\n");
         } else {
             if (rdbuf[0]) {
-                write(fd_stdout, "{", 1);
-                write(fd_stdout, rdbuf, r);
-                write(fd_stdout, "}\n", 2); 
+                printf("{%s}\n", rdbuf); 
             }
         }
     }
@@ -203,10 +201,6 @@ void TestB() {
 void TestC() {
     spin("TestC");
     // assert(0);
-    while(1) {
-        printf("C");
-        milli_delay(200);
-    }
 }
 
 PUBLIC void panic(const char *fmt, ...) {

@@ -18,11 +18,12 @@ typedef struct s_tty {
     u32*   ibuf_tail;          /* next pos for read */
     int    ibuf_cnt;           /* size of used buffer */
 
-    int    tty_caller;         // who called, usually FS
-    int    tty_procnr;         // which process wants the chars
+    // see Page 408
+    int    tty_caller;         // who called, usually FS (requested by process p -> FS)
+    int    tty_procnr;         // which process wants the chars (process p)
     void*  tty_req_buf;        // the addr where the chars to put
-    int    tty_left_cnt;       // requested chars
-    int    tty_trans_cnt;      // transferred chars
+    int    tty_left_cnt;       // requested chars by process p
+    int    tty_trans_cnt;      // transferred chars to process p
 
     struct  s_console*    console;
 } TTY;

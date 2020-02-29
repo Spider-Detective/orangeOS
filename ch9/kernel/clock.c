@@ -24,6 +24,15 @@ PUBLIC void clock_handler(int irq) {
         p_proc_ready->ticks--;
     }
 
+    /*
+     * This is to wake up tty process
+     * Since the user typing input is slow, task_tty's while loop can be freeze after the user
+     * typed 1 char (while (tty->ibuf_cnt) becomes false and the process will start to wait at
+     * send_recv(RECEIVE, ANY, &msg);)
+     * So we need to send msg to tty process to "wake it up". 
+     * Whenever a key is pressed, the clock handler will inform tty to make it continue to exe
+     * See Page 409 and 410
+     */
     if (key_pressed) {
         inform_int(TASK_TTY);
     }
