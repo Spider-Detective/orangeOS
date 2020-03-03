@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        ".bochsrc": "shellscript",
+        "proc.h": "c"
+    }
+}
