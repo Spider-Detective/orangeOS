@@ -44,7 +44,7 @@ PUBLIC int kernel_main() {
         }
 
         strcpy(p_proc->name, p_task->name);       // process name
-        p_proc->pid = i;                            // process id
+        // p_proc->pid = i;                            // process id
 
         p_proc->ldt_sel = selector_ldt;
 

@@ -44,7 +44,7 @@ struct part_ent {
 
 // control block registers
 #define REG_DEV_CTRL   0x3F6
-#define REG_ALT_STATUs REG_DEV_CTRL
+#define REG_ALT_STATUS REG_DEV_CTRL
 
 #define REG_DRV_ADDR   0x3F7
 

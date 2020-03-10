@@ -35,10 +35,10 @@ struct proc {
     int ticks;                     // remained ticks for exe
     int priority;                  // initial ticks of the process
 
-    u32 pid;                       // process id
+    // u32 pid;                       // process id
     char name[16];               // name of the process
 
-    int p_flags;
+    int p_flags;                  // a process is runnable iff p_flags == 0
     MESSAGE* p_msg;
     int p_recvfrom;
     int p_sendto;
@@ -47,7 +47,8 @@ struct proc {
     struct proc* q_sending;        // queue of procs wanting to send msg to this proc
     struct proc* next_sending;     // next proc in the sending queue, linked list
 
-    int nr_tty;
+    int p_parent;                  // parent process's pid
+    int exit_status;               // returned to parent
 
     struct file_desc* filp[NR_FILES];   // stores the array of file descriptor
 };
@@ -65,23 +66,36 @@ struct task {
  * tasks: tty etc, run on ring1
  * processes: for user, run on ring3
  */
-#define NR_TASKS       4
-#define NR_PROCS       3
-#define FIRST_PROC     proc_table[0]
-#define LAST_PROC      proc_table[NR_TASKS + NR_PROCS - 1]
+#define NR_TASKS         5
+#define NR_PROCS         32
+#define NR_NATIVE_PROCS  4
+#define FIRST_PROC       proc_table[0]
+#define LAST_PROC        proc_table[NR_TASKS + NR_PROCS - 1]
+
+// all forked procs will use memory above PROCS_BASE
+#define PROCS_BASE             0xA00000    // 10 MB
+#define PROC_IMAGE_SIZE_DEFULT 0x100000    // 1MB
+#define PROC_ORIGIN_STACK      0x400       // 1KB
 
 /* stacks of tasks */
-#define STACK_SIZE_TTY         0x8000
-#define STACK_SIZE_SYS         0x8000
-#define STACK_SIZE_HD          0x8000
-#define STACK_SIZE_FS          0x8000
-#define STACK_SIZE_TESTA       0x8000
-#define STACK_SIZE_TESTB       0x8000
-#define STACK_SIZE_TESTC       0x8000
+#define STACK_SIZE_DEFAULT     0x4000      // 16 KB
+#define STACK_SIZE_TTY         STACK_SIZE_DEFAULT
+#define STACK_SIZE_SYS         STACK_SIZE_DEFAULT
+#define STACK_SIZE_HD          STACK_SIZE_DEFAULT
+#define STACK_SIZE_FS          STACK_SIZE_DEFAULT
+#define STACK_SIZE_MM          STACK_SIZE_DEFAULT
+#define STACK_SIZE_INIT        STACK_SIZE_DEFAULT
+
+#define STACK_SIZE_TESTA       STACK_SIZE_DEFAULT
+#define STACK_SIZE_TESTB       STACK_SIZE_DEFAULT
+#define STACK_SIZE_TESTC       STACK_SIZE_DEFAULT
+
 #define STACK_SIZE_TOTAL       (STACK_SIZE_TTY + \
                                 STACK_SIZE_SYS + \
                                 STACK_SIZE_HD + \
                                 STACK_SIZE_FS + \
+                                STACK_SIZE_MM + \
+                                STACK_SIZE_INIT + \
                                 STACK_SIZE_TESTA + \
                                 STACK_SIZE_TESTB + \
                                 STACK_SIZE_TESTC)

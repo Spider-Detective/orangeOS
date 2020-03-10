@@ -36,6 +36,9 @@
 /* Process */
 #define SENDING        0x02      /* set when proc trying to send */
 #define RECEIVING      0x04      /* set when proc trying to receive */
+#define WAITING        0x08      /* set when proc waiting for the child to terminate */
+#define HANGING        0x10      /* set when proc exits without being waited by parent */
+#define FREE_SLOT      0x20      /* set when proc table entry is unused */
 
 /* TTY */
 #define NR_CONSOLES    3     /* consoles, 32kb video mem is enough for 3 80*25 consoles */
@@ -69,6 +72,19 @@
 #define V_MEM_BASE     0xB8000 /* Base of color video mem */
 #define V_MEM_SIZE     0x8000  /* 32K */
 
+/* CMOS */
+#define CLK_ELE        0x70    
+#define CLK_IO         0x71
+  /* clock register addr in CMOS RAM */
+#define YEAR           9       
+#define MONTH          8
+#define DAY            7
+#define HOUR           4
+#define MINUTE         2
+#define SECOND         0
+#define CLK_STATUS     0x0B
+#define CLK_HEALTH     0x0E
+
 /* Hardware interrupts */
 #define NR_IRQ          16
 #define CLOCK_IRQ       0
@@ -90,7 +106,8 @@
 #define TASK_SYS	    1
 #define TASK_HD     	2
 #define TASK_FS	        3 
-/* #define TASK_MM	4 */
+#define TASK_MM	        4
+#define INIT            5
 #define ANY		        (NR_TASKS + NR_PROCS + 10)
 #define NO_TASK		    (NR_TASKS + NR_PROCS + 20)
 
@@ -109,14 +126,22 @@
 
 // always add new syscall type here
 enum msgtype {
-    HARD_INT = 1,
-    GET_TICKS, GET_PID, // SYS task
+    HARD_INT = 1,    // hardware interruption
+
+    /* SYS task */
+    GET_TICKS, GET_PID, GET_RTC_TIME, 
 
     /* FS */
     OPEN, CLOSE, READ, WRITE, LSEEK, STAT, UNLINK,
 
     /* FS & TTY */
     SUSPEND_PROC, RESUME_PROC,
+
+    /* MM */
+    EXEC, WAIT,
+
+    /* FS & MM */
+    FORK, EXIT,
 
     SYSCALL_RET,
 
@@ -143,8 +168,9 @@ enum msgtype {
 #define BUF             u.m3.m3p2
 #define OFFSET          u.m3.m3i2
 #define WHENCE          u.m3.m3i3
-#define PID             u.m3.m3i2
 
+#define PID             u.m3.m3i2
+#define STATUS          u.m3.m3i1
 #define RETVAL          u.m3.m3i1
 
 

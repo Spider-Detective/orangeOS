@@ -56,4 +56,10 @@ typedef struct {
     } u;
 } MESSAGE;
 
+// Definition of boot params, same as in load.inc
+struct boot_params {
+    int             mem_size;        // memory size
+    unsigned char*  kernel_file;     // kernel file addr
+};
+
 #endif /* _ORANGES_TYPE_H_ */

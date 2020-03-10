@@ -60,6 +60,7 @@ struct dir_entry {
 struct file_desc {
     int            fd_mode;   // read or write
     int            fd_pos;    // current pos for R/W
+    int            fd_cnt;    // how many procs sharing this fd
     struct inode*  fd_inode;  // pointer to inode in i_node_table
 };
 

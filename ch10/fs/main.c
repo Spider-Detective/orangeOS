@@ -15,19 +15,22 @@
 PRIVATE void init_fs();
 PRIVATE void mkfs();
 PRIVATE void read_super_block(int dev);
+PRIVATE int  fs_fork();
+PRIVATE int  fs_exit();
 
 // task_fs, sends DEV_OPEN to get disk info
 PUBLIC void task_fs() {
-    printl("Task FS begins.\n");
+    printl("{FS} Task FS begins.\n");
     init_fs();
     
     while (1) {
         send_recv(RECEIVE, ANY, &fs_msg);
 
+        int msgtype = fs_msg.type;
         int src = fs_msg.source;
         pcaller = &proc_table[src];   // defined in global.h
 
-        switch(fs_msg.type) {
+        switch(msgtype) {
             case OPEN:
                 fs_msg.FD = do_open();
                 break;
@@ -43,6 +46,12 @@ PUBLIC void task_fs() {
                 break;
             case RESUME_PROC:
                 src = fs_msg.PROC_NR;
+                break;
+            case FORK:
+                fs_msg.RETVAL = fs_fork();
+                break;
+            case EXIT:
+                fs_msg.RETVAL = fs_exit();
                 break;
             default:
                 dump_msg("FS::unknown message:", &fs_msg);
@@ -326,4 +335,36 @@ PUBLIC void sync_inode(struct inode* p) {
     pinode->i_start_sect = p->i_start_sect;
     pinode->i_nr_sects = p->i_nr_sects;
     WR_SECT(p->i_dev, blk_nr);
+}
+
+// increase the reference count for the child process when fork happens
+PRIVATE int fs_fork() {
+    int i;
+    struct proc* child = &proc_table[fs_msg.PID];
+    for (i = 0; i < NR_FILES; i++) {
+        if (child->filp[i]) {
+            child->filp[i]->fd_cnt++;
+            child->filp[i]->fd_inode->i_cnt++;
+        }
+    }
+
+    return 0;
+}
+
+// do the reverse of fs_fork
+PRIVATE int fs_exit() {
+    int i;
+    struct proc* p = &proc_table[fs_msg.PID];
+    for (i = 0; i < NR_FILES; i++) {
+        if (p->filp[i]) {
+            // release the inode
+            p->filp[i]->fd_inode->i_cnt--;
+            if (--p->filp[i]->fd_cnt == 0) {
+                p->filp[i]->fd_inode == 0;
+            }
+            p->filp[i] = 0;
+        }
+    }
+
+    return 0;
 }

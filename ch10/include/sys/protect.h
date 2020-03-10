@@ -14,6 +14,11 @@ struct descriptor {
     u8     base_high
 };
 
+#define reassembly(high, high_shift, mid, mid_shift, low)      \
+        (((high) << (high_shift)) +                            \
+         ((mid)  << (mid_shift))  +                            \
+         (low))
+
 // gate descriptor, see Code 3.40
 struct gate {
     u16    offset_low;
@@ -140,6 +145,7 @@ struct tss {
 #define INT_VECTOR_SYS_CALL    0x90
 
 // macros
-#define vir2phys(seg_base, vir) (u32)(((u32)seg_base) + ((u32)vir))
+// #define vir2phys(seg_base, vir) (u32)(((u32)seg_base) + ((u32)vir))
+#define makelinear(seg, off)   (u32)(((u32)(seg2linear(seg))) + (u32)(off))
 
 #endif /* _ORANGES_PROTECT_H_ */

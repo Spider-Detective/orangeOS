@@ -107,9 +107,8 @@ LABEL_GOTO_NEXT_SECTOR_IN_ROOT_DIR:
 		jmp     LABEL_SEARCH_IN_ROOT_DIR_BEGIN
 
 LABEL_NO_KERNELBIN:
-		mov     dh, 2                ; show the string of sequence #2
+		mov     dh, 3                ; show the string of sequence #3
 		call    DispStrRealMode
-
  		jmp     $
 
 LABEL_FILENAME_FOUND:
@@ -120,8 +119,15 @@ LABEL_FILENAME_FOUND:
         push    eax
         mov     eax, [es:di + 01Ch]  ; see Table 4.2
         mov     dword [dwKernelSize], eax
+		cmp     eax, KERNEL_VALID_SPACE
+		ja      .1
         pop     eax
-
+		jmp     .2
+.1:
+        mov     dh, 4                ; kernel size Too Large, halt
+		call    DispStrRealMode
+		jmp     $
+.2:
 		add     di, 01Ah             ; starting sector #, see Table 4.2
 		mov     cx, word [es:di]
 		push    cx                   ; save the # in FAT for current sector
@@ -131,6 +137,7 @@ LABEL_FILENAME_FOUND:
 		mov     es, ax
 		mov     bx, KERNEL_FILE_OFF
 		mov     ax, cx
+
 LABEL_GOON_LOADING_FILE:
 		; add '.' each time reading a sector, Loading .....
 		push    ax
@@ -176,7 +183,7 @@ LABEL_FILE_LOADED:
 		mov     bx, 500h      ; ES:BX, data buffer
 		int     13h
 
-		mov     dh, 1          ; print "Ready."
+		mov     dh, 2          ; print "Ready."
 		call    DispStrRealMode
 
         ; jump into protect mode
@@ -198,7 +205,7 @@ LABEL_FILE_LOADED:
 
         jmp     dword SelectorFlatC:(LOADER_PHY_ADDR+LABEL_PM_START)
         
-        jmp     $
+        ;jmp     $
 
 ; --------------------------------------------------------
 wRootDirSizeForLoop      dw  RootDirSectors      ; sector # taken by root directory, will decrement to 0
@@ -210,8 +217,10 @@ KernelFileName           db  "KERNEL  BIN", 0    ;
 ; to simplify, all string length is MessageLength
 MessageLength            equ 9
 LoadMessage:             db  "Loading  "         ; sequence # 0
-Message1                 db  "Ready.   "         ; sequence # 1
-Message2                 db  "No KERNEL"         ; sequence # 2
+Message1                 db  "         "         ; sequence #1
+Message2                 db  "Ready.   "         ; sequence #2
+Message3                 db  "No KERNEL"         ; sequence #3
+Message4                 db  "Too Large"         ; sequence #4
 ; --------------------------------------------------------
 
 ; show up the string, given the sequence # of string (0-based) in dh
@@ -351,10 +360,6 @@ LABEL_PM_START:
         mov     ss, ax
         mov     esp, TopOfStack
 
-        push    szMemChkTitle
-        call    DispStr
-        add     esp, 4
-
         call    DispMemInfo
         call    SetupPaging
 
@@ -391,6 +396,10 @@ DispMemInfo:
 		push    esi
 		push    edi
 		push    ecx
+
+		push    szMemChkTitle
+        call    DispStr
+        add     esp, 4
 
 		mov     esi, MemChkBuf
 		mov     ecx, [dwMCRNumer]   ; for (int i = 0; i < [MCRNumber]; i++) // get ARDS each time
@@ -532,7 +541,7 @@ _szReturn                       db      0Ah, 0
 
 ; variables
 _dwMCRNumber:                   dd        0         ; number of memory check results
-_dwDispPos:                     dd        (80 * 6 + 0) * 2      ; display position
+_dwDispPos:                     dd        (80 * 7 + 0) * 2      ; display position
 _dwMemSize:                     dd        0
 _ARDStruct:              ; Address Range Descriptor Structure
 		_dwBaseAddrLow:         dd        0
