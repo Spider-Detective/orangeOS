@@ -117,11 +117,11 @@
 /* Keyboard buffer for storing the incoming scan code from 8042, 1 per console. 
  * Circular buffer
  */
-typedef struct s_kb {
+struct kb_inbuf {
 	char*	p_head;			    /* next pos to write in the buffer */
 	char*	p_tail;			    /* next pos to read in the buffer */
 	int	    count;			    /* length of used buffer */
 	char	buf[KB_IN_BYTES];	/* buffer */
-}KB_INPUT;
+};
 
 #endif /* _ORANGES_KEYBOARD_H_ */

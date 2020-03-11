@@ -73,9 +73,9 @@ struct task {
 #define LAST_PROC        proc_table[NR_TASKS + NR_PROCS - 1]
 
 // all forked procs will use memory above PROCS_BASE
-#define PROCS_BASE             0xA00000    // 10 MB
-#define PROC_IMAGE_SIZE_DEFULT 0x100000    // 1MB
-#define PROC_ORIGIN_STACK      0x400       // 1KB
+#define PROCS_BASE              0xA00000    // 10 MB
+#define PROC_IMAGE_SIZE_DEFAULT 0x100000    // 1MB
+#define PROC_ORIGIN_STACK       0x400       // 1KB
 
 /* stacks of tasks */
 #define STACK_SIZE_DEFAULT     0x4000      // 16 KB

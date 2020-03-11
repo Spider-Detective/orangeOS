@@ -12,7 +12,7 @@
 #include "keyboard.h"
 #include "keymap.h"
 
-PRIVATE KB_INPUT       kb_in;
+PRIVATE struct kb_inbuf       kb_in;
 
 PRIVATE int            code_with_E0;
 PRIVATE int            shift_l;           // left shift key's status

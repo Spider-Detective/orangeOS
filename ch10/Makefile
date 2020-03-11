@@ -67,7 +67,7 @@ boot/boot.bin : boot/boot.asm boot/include/load.inc boot/include/fat12hdr.inc
 		$(ASM) $(ASMBFLAGS) -o $@ $<
 
 boot/loader.bin : boot/loader.asm boot/include/load.inc \
-                    boot/include/fat12hdr.inc boot/include/pm.inc boot/include/lib.inc
+                    boot/include/fat12hdr.inc boot/include/pm.inc# boot/include/lib.inc
 		$(ASM) $(ASMBFLAGS) -o $@ $<
 
 $(ORANGESKERNEL) : $(OBJS)

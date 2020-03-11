@@ -88,6 +88,7 @@ struct tss {
 /* Descriptor Attr */
 #define	DA_32			0x4000	/* 32-bit seg				*/
 #define	DA_LIMIT_4K		0x8000	/* seg limit granulairty is 4K		*/
+#define LIMIT_4K_SHIFT  12
 #define	DA_DPL0			0x00	/* DPL = 0				*/
 #define	DA_DPL1			0x20	/* DPL = 1				*/
 #define	DA_DPL2			0x40	/* DPL = 2				*/

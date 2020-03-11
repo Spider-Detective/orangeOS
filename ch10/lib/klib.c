@@ -7,11 +7,11 @@
 #include "stdio.h"
 #include "const.h"
 #include "protect.h"
-#include "tty.h"
-#include "console.h"
 #include "string.h"
 #include "fs.h"
 #include "proc.h"
+#include "tty.h"
+#include "console.h"
 #include "global.h"
 #include "proto.h"
 
@@ -21,7 +21,7 @@
 // return the pointer to the params
 PUBLIC void get_boot_params(struct boot_params* pbp) {
     int* p = (int*)BOOT_PARAM_ADDR;  // see config.h
-    assert(p[BI_MAG] == BOOT_PARAM_ADDR);
+    assert(p[BI_MAG] == BOOT_PARAM_MAGIC);
 
     pbp->mem_size = p[BI_MEM_SIZE];
     pbp->kernel_file = (u8*)(p[BI_KERNEL_FILE]);

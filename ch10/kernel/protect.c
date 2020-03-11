@@ -165,17 +165,20 @@ PUBLIC void init_prot() {
 					DA_386TSS);
 	tss.iobase = sizeof(tss);       // no I/O bitmap
 
-	// fill LDT descriptor into GDT for all processes
+	// fill LDT descriptor into GDT for all processes, see Figure 10.1
+	// implement path 2 and 3 in Figure 10.1
 	int i;
 	for (i = 0; i < NR_TASKS + NR_PROCS; i++) {
 		memset(&proc_table[i], 0, sizeof(struct proc));
 
-		proc_table[i].ldt_sel = SELECTOR_LDT_FIRST + (i << 3);
+		// point ldt_sel
+		proc_table[i].ldt_sel = SELECTOR_LDT_FIRST + (i << 3);  
 		assert(INDEX_LDT_FIRST + i < GDT_SIZE);
+		// point ldt to process img
 		init_desc(&gdt[INDEX_LDT_FIRST + i],
-						makelinear(SELECTOR_KERNEL_DS, proc_table[i].ldts),
-						LDT_SIZE * sizeof(struct descriptor) - 1,
-						DA_LDT);
+				  makelinear(SELECTOR_KERNEL_DS, proc_table[i].ldts),
+				  LDT_SIZE * sizeof(struct descriptor) - 1,
+				  DA_LDT);
 	}
 }
 
@@ -255,6 +258,7 @@ PUBLIC void exception_handler(int vec_no, int err_code, int eip, int cs, int efl
 
     // Print exception info, and stack status
     disp_color_str("Exception! --> ", text_color);
+	disp_color_str(vec_no, text_color);
     disp_color_str(err_msg[vec_no], text_color);
     disp_color_str("\n\n", text_color);
     disp_color_str("EFLAGS: ", text_color);
