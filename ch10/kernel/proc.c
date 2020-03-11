@@ -133,7 +133,7 @@ PUBLIC void* va2la(int pid, void* va) {
     u32 seg_base = ldt_seg_linear(p, INDEX_LDT_RW);
     u32 la = seg_base + (u32)va;
 
-    if (pid < NR_TASKS + NR_PROCS) {
+    if (pid < NR_TASKS + NR_NATIVE_PROCS) {
         assert(la == (u32)va);
     }
 
