@@ -14,8 +14,8 @@
 #include "global.h"
 #include "proto.h"
 
-PRIVATE void init_idt_desc(unsigned char vector, u8 desc_type,
-                            int_handler handler, unsigned char privilege);
+PRIVATE void init_idt_desc(u8 vector, u8 desc_type,
+                            int_handler handler, u8 privilege);
 
 // import int handler functions from kernel.asm
 // For exceptions:
@@ -186,8 +186,8 @@ PUBLIC void init_prot() {
  * Initialize interrupt gate descriptor (defined in protect.h)
  * NOTICE: here int_handler is used, see the function pointer def in type.h
  */
-PRIVATE void init_idt_desc(unsigned char vector, u8 desc_type,
-                            int_handler handler, unsigned char privilege) {
+PRIVATE void init_idt_desc(u8 vector, u8 desc_type,
+                            int_handler handler, u8 privilege) {
     // see Code 3.36 for initialzing Gate
     struct gate* p_gate   = &idt[vector];
     u32   base            = (u32) handler;
@@ -215,7 +215,7 @@ PUBLIC void init_desc(struct descriptor* p_desc, u32 base, u32 limit, u16 attrib
  */
 PUBLIC u32 seg2linear(u16 seg) {
 	struct descriptor* p_dest = &gdt[seg >> 3];   // each selector has length 0x8
-	return (p_dest -> base_high << 24 | p_dest -> base_mid << 16 | p_dest -> base_low);
+	return (p_dest -> base_high << 24) | (p_dest -> base_mid << 16) | (p_dest -> base_low);
 }
 
 /*
@@ -226,7 +226,7 @@ PUBLIC void exception_handler(int vec_no, int err_code, int eip, int cs, int efl
     int i;
     int text_color = 0x74;   // grey back, red char
 
-    char* err_msg[] = {
+    char* err_msg[][64] = {
                 "#DE Divide Error",
 			    "#DB RESERVED",
 			    "--  NMI Interrupt",
