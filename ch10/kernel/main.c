@@ -126,6 +126,8 @@ void Init() {
 
     printf("Init() is running...\n");
 
+#if 0
+
     int pid = fork();
     if (pid != 0) {   // parent process
         printf("parent is running, child pid:%d\n", pid);
@@ -147,6 +149,8 @@ void Init() {
         int child = wait(&s);
         printf("child (%d) exited with status: %d.\n", child, s);
     }
+#endif
+    spin("Init");
 }
 
 /* Simple function of process A
