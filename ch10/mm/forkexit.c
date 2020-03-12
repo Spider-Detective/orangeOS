@@ -115,9 +115,41 @@ PUBLIC int do_fork() {
 	return 0;
 }
 
-// exit syscall
+// exit syscall, see Page 430.
 PUBLIC void do_exit(int status) {
+	int i;
+	int pid = mm_msg.source;
+	int parent_pid = proc_table[pid].p_parent;
+	struct proc* p = &proc_table[pid];
 
+	// let FS clear inode and fd, see fs_exit() in fs/main.c
+	MESSAGE msg2fs;
+	msg2fs.type = EXIT;
+	msg2fs.PID = pid;
+	send_recv(BOTH, TASK_FS, &msg2fs);
+
+	free_mem(pid);
+	p->exit_status = status;
+
+	// if parent is waiting, clear the flag and cleanup child
+	if (proc_table[parent_pid].p_flags & WAITING) {
+		proc_table[parent_pid].p_flags &= ~WAITING;
+		cleanup(&proc_table[pid]);
+	} else {  // if parent not waiting, change child to HANGING
+	    proc_table[pid].p_flags |= HANGING;
+	}
+
+	// move the children of the process to under init process
+	for (i = 0; i < NR_TASKS + NR_PROCS; i++) {
+		if (proc_table[i].p_parent == pid) {
+			proc_table[i].p_parent = INIT;
+			if ((proc_table[INIT].p_flags & WAITING) &&
+			    (proc_table[i].p_flags & HANGING)) {
+				proc_table[INIT].p_flags &= ~WAITING;
+				cleanup(&proc_table[i]);
+			}
+		}
+	}
 }
 
 // clean up the process record
@@ -135,6 +167,33 @@ PRIVATE void cleanup(struct proc* proc) {
     printl("{MM} ((--cleanup():: %s (%d) has been cleaned up. --))\n", proc->name, proc2pid(proc));
 }
 
+// wait syscall
 PUBLIC void do_wait() {
-    
+	int pid = mm_msg.source;
+
+	int i;
+	int children = 0;
+	struct proc* p_proc = proc_table;
+
+	// if the process's child is HANGING, unblock and cleanup the child
+	for (i = 0; i < NR_TASKS + NR_PROCS; i++, p_proc++) {
+		if (p_proc->p_parent == pid) {
+			children++;
+			if (p_proc->p_flags & HANGING) {
+				cleanup(p_proc);
+				return;
+			}
+		}
+	}
+
+	if (children) {
+		// if no child is HANGING
+		proc_table[pid].p_flags |= WAITING;
+	} else {
+		// if no child, error
+		MESSAGE msg;
+		msg.type = SYSCALL_RET;
+		msg.PID = NO_TASK;
+		send_recv(SEND, pid, &msg);
+	}
 }

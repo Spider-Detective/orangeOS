@@ -129,10 +129,23 @@ void Init() {
     int pid = fork();
     if (pid != 0) {   // parent process
         printf("parent is running, child pid:%d\n", pid);
-        spin("parent");
+        int s;
+        int child = wait(&s);
+        printf("child (%d) exited with status: %d.\n", child, s);
     } else {          // child process
         printf("child is running, pid:%d\n", getpid());
-        spin("child");
+        exit(123);
+    }
+
+    /*
+     * The Init process will accept the child process whose parent was exit 
+     * before waiting the child. So it should keep waiting to allow the child
+     * exit and cleanup
+     */ 
+    while (1) {
+        int s;
+        int child = wait(&s);
+        printf("child (%d) exited with status: %d.\n", child, s);
     }
 }
 
