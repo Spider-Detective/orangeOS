@@ -2,6 +2,11 @@
  * I/O related definitions
  */
 
+#ifndef _ORANGES_STDIO_H_
+#define _ORANGES_STDIO_H_
+
+#include "type.h"
+
 #define ASSERT
 #ifdef  ASSERT
 void assertion_failure(char* exp, char* file, char* base_file, int line);
@@ -77,3 +82,5 @@ PUBLIC int wait(int* status);
 
 /* lib/syslog.c */
 PUBLIC int syslog(const char* fmt, ...);
+
+#endif /* _ORANGES_STDIO_H_ */
