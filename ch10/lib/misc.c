@@ -12,6 +12,35 @@
 #include "keyboard.h"
 #include "proto.h"
 
+// a wrapper of sendrec, directions: BOTH, SEND and RECEIVE
+// src_dest: the caller's proc_nr
+PUBLIC int send_recv(int function, int src_dest, MESSAGE* msg) {
+    int ret = 0;
+
+    if (function == RECEIVE) {
+        memset(msg, 0, sizeof(MESSAGE));
+    }
+
+    switch(function) {
+        // send then change to receive to wait for reply
+        case BOTH:
+            ret = sendrec(SEND, src_dest, msg);
+            if (ret == 0) {
+                ret = sendrec(RECEIVE, src_dest, msg);
+            }
+            break;
+        case SEND:
+        case RECEIVE:
+            ret = sendrec(function, src_dest, msg);
+            break;
+        default:
+            assert((function == BOTH) || (function == SEND) || (function == RECEIVE));
+            break;
+    }
+
+    return ret;
+}
+
 PUBLIC int memcmp(const void* s1, const void* s2, int n) {
     if ((s1 == 0) || (s2 == 0)) {
         return (s1 - s2);

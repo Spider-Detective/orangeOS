@@ -115,7 +115,7 @@ PRIVATE void mkfs() {
     assert(dd_map[MAJOR(ROOT_DEV)].driver_nr != INVALID_DRIVER);
     send_recv(BOTH, dd_map[MAJOR(ROOT_DEV)].driver_nr, &driver_msg);
 
-    printl("dev size: 0x%x sectors\n", geo.size);
+    printl("{FS} dev size: 0x%x sectors\n", geo.size);
 
     // write super block to sector #1
     struct super_block sb;
@@ -140,7 +140,7 @@ PRIVATE void mkfs() {
     memcpy(fsbuf, &sb, SUPER_BLOCK_SIZE);
     WR_SECT(ROOT_DEV, 1);     // write through system call
 
-    printl("devbase:0x%x00, sb:0x%x00, imap:0x%x00, smap:0x%x00\n"
+    printl("{FS} devbase:0x%x00, sb:0x%x00, imap:0x%x00, smap:0x%x00\n"
            "        inodes:0x%x00, 1st_sector:0x%x00\n",
            geo.base * 2,
            (geo.base + 1) * 2,
@@ -151,12 +151,13 @@ PRIVATE void mkfs() {
 
     // write inode bitmap into sector 2
     memset(fsbuf, 0, SECTOR_SIZE);
-    for (i = 0; i < (NR_CONSOLES + 2); i++) {
+    for (i = 0; i < (NR_CONSOLES + 3); i++) {
         fsbuf[0] |= 1 << i;
     }
-    assert(fsbuf[0] == 0x1F);   // 0001 1111
+    assert(fsbuf[0] == 0x3F);   // 0011 1111
                                 // bit 0: reserved, bit 1: for root dir '/'
                                 // bit 2-4: /dev_tty0-2
+                                // bit 5: /cmd.tar
     WR_SECT(ROOT_DEV, 2);
 
     // write sector map after inode map
@@ -172,17 +173,42 @@ PRIVATE void mkfs() {
     WR_SECT(ROOT_DEV, 2 + sb.nr_imap_sects);
 
     // set the rest of sect-map to all 0
-    memset(fsbuf, 0, SECTOR_SIZE);
-    for (i = 1; i < sb.nr_smap_sects; i++) {
-        WR_SECT(ROOT_DEV, 2 + sb.nr_imap_sects + i);
+	memset(fsbuf, 0, SECTOR_SIZE);
+	for (i = 1; i < sb.nr_smap_sects; i++) {
+		WR_SECT(ROOT_DEV, 2 + sb.nr_imap_sects + i);
     }
 
+	/* cmd.tar */
+	// make sure it'll not be overwritten by the disk log
+	assert(INSTALL_START_SECT + INSTALL_NR_SECTS < 
+	       sb.nr_sects - NR_SECTS_FOR_LOG);
+	int bit_offset = INSTALL_START_SECT -
+		sb.n_1st_sect + 1; /* sect M <-> bit (M - sb.n_1stsect + 1) */
+	int bit_off_in_sect = bit_offset % (SECTOR_SIZE * 8);
+	int bit_left = INSTALL_NR_SECTS;
+	int cur_sect = bit_offset / (SECTOR_SIZE * 8);
+	RD_SECT(ROOT_DEV, 2 + sb.nr_imap_sects + cur_sect);
+	while (bit_left) {
+		int byte_off = bit_off_in_sect / 8;
+		/* this line is ineffecient in a loop, but I don't care */
+		fsbuf[byte_off] |= 1 << (bit_off_in_sect % 8);
+		bit_left--;
+		bit_off_in_sect++;
+		if (bit_off_in_sect == (SECTOR_SIZE * 8)) {
+			WR_SECT(ROOT_DEV, 2 + sb.nr_imap_sects + cur_sect);
+			cur_sect++;
+			RD_SECT(ROOT_DEV, 2 + sb.nr_imap_sects + cur_sect);
+			bit_off_in_sect = 0;
+		}
+	}
+	WR_SECT(ROOT_DEV, 2 + sb.nr_imap_sects + cur_sect);
+    
     // setup inode array for root dir and dev_tty files
     memset(fsbuf, 0, SECTOR_SIZE);
     struct inode* pi = (struct inode*)fsbuf;
     // '/'
     pi->i_mode = I_DIRECTORY;
-    pi->i_size = DIR_ENTRY_SIZE * 4; // 4 files: '/' and 3 dev_tty
+    pi->i_size = DIR_ENTRY_SIZE * 5; // 5 files: '/' and 3 dev_tty and .tar
     pi->i_start_sect = sb.n_1st_sect;
     pi->i_nr_sects = NR_DEFAULT_FILE_SECTS;
     // dev_tty
@@ -193,6 +219,12 @@ PRIVATE void mkfs() {
         pi->i_start_sect = MAKE_DEV(DEV_CHAR_TTY, i);
         pi->i_nr_sects = 0;
     }
+    // inode of `/cmd.tar'
+	pi = (struct inode*)(fsbuf + (INODE_SIZE * (NR_CONSOLES + 1)));
+	pi->i_mode = I_REGULAR;
+	pi->i_size = INSTALL_NR_SECTS * SECTOR_SIZE;
+	pi->i_start_sect = INSTALL_START_SECT;
+	pi->i_nr_sects = INSTALL_NR_SECTS;
     WR_SECT(ROOT_DEV, 2 + sb.nr_imap_sects + sb.nr_smap_sects);
 
     // set the dir_entry for root dir '/'
@@ -207,6 +239,8 @@ PRIVATE void mkfs() {
         pde->inode_nr = i + 2;    // dev_tty0 starts from 2
         sprintf(pde->name, "dev_tty%d", i);
     }
+    (++pde)->inode_nr = NR_CONSOLES + 2;
+	strcpy(pde->name, "cmd.tar");
     WR_SECT(ROOT_DEV, sb.n_1st_sect);
 }
 

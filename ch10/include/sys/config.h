@@ -2,6 +2,10 @@
  * Definitions for hard disk configuration
  */
 
+// reserved space for .tar file
+#define INSTALL_START_SECT   0x8000
+#define INSTALL_NR_SECTS     0x800       // 1MB at most
+
 #define MINOR_BOOT           MINOR_hd2a
 
 // boot consts

@@ -4,14 +4,14 @@
 # Entry point of orangeS: same value as KRNL_ENT_PT_PHY_ADDR in load.inc
 ENTRYPOINT           = 0x1000
 
-HD                   = ../80m/img
+HD                   = ../80m.img
 ASM                  = nasm
 DASM                 = objdump
 CC                   = gcc
 LD                   = ld
 ASMFLAGS             = -I ../include/ -f elf
 CFLAGS               = -I ../include/ -m32 -c -fno-stack-protector -fno-builtin -Wall
-LDFLAGS              = -m elf_i386 -s -Ttext $(ENTRYPOINT)
+LDFLAGS              = -m elf_i386 -Ttext $(ENTRYPOINT)
 DASMFLAGS            = -D
 
 LIB                  = ../lib/orangescrt.a
@@ -21,6 +21,7 @@ BIN                  = echo pwd
 
 everything : $(BIN)
 
+# tar kernel and apps into one file, then use dd to write into the hard drive
 install : realclean everything clean
 	cp ../kernel.bin ./ -v
 	tar vcf inst.tar kernel.bin $(BIN)

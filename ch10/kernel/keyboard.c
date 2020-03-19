@@ -136,7 +136,7 @@ PUBLIC void keyboard_read(TTY* p_tty) {
              * If shift_l or shift_r is true, that means only received make code of shift key => shift key is being pressed
              * Then when another make code is received, go to column 1 of the keymap
              */
-            make = (scan_code & FLAG_BREAK) ? FALSE : TRUE;   // mask_code | 0x80 == break_code, see keymap.h
+            make = (scan_code & FLAG_BREAK) ? 0 : 1;   // mask_code | 0x80 == break_code, see keymap.h
             
             keyrow = &keymap[(scan_code & 0x7F) * MAP_COLS];  // go to the row
 
